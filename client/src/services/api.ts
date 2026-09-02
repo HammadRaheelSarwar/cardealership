@@ -4,7 +4,9 @@ import { useAuthStore } from '@/store/authStore';
 // ─── Axios Instance ───────────────────────────────────────────────────────────
 
 export const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/v1`
+    : '/api/v1',
   withCredentials: true, // Required for httpOnly refresh token cookies
   headers: {
     'Content-Type': 'application/json',
