@@ -1,4 +1,5 @@
 import api from './api';
+import { useAuthStore } from '@/store/authStore';
 import type {
   SalespersonWorkspaceData,
   ManagerWorkspaceData,
@@ -8,19 +9,34 @@ import type {
   DateRangePreset,
 } from '@crm/shared';
 
-// STRICT MOCK ISOLATION RULE:
-// Mock fallback is ONLY allowed if VITE_DEMO_MODE === 'true' or in development demo mode.
-// In production without this flag, real API failures MUST throw.
+// Real sessions may only fall back to fixtures in explicitly configured demo builds.
 const IS_DEMO_MODE =
   import.meta.env.VITE_DEMO_MODE === 'true' ||
   (import.meta.env.DEV && !import.meta.env.VITE_API_URL);
 
+function isDemoSession(): boolean {
+  const { accessToken, activeDealershipId } = useAuthStore.getState();
+  return accessToken === 'demo-access-token' && activeDealershipId === 'demo-dealership-1';
+}
+
+function workspaceData<T>(body: unknown): T {
+  if (
+    !body || typeof body !== 'object' || !('success' in body) ||
+    body.success !== true || !('data' in body) ||
+    !body.data || typeof body.data !== 'object' || Array.isArray(body.data)
+  ) {
+    throw new Error('The workspace API returned an invalid response. Please check the backend connection.');
+  }
+  return body.data as T;
+}
+
 // ─── Salesperson Workspace ───────────────────────────────────────────────────
 
 export async function fetchSalespersonWorkspace(): Promise<SalespersonWorkspaceData> {
+  if (isDemoSession()) return getMockSalespersonWorkspace();
   try {
     const res = await api.get('/workspace/salesperson');
-    return res.data.data;
+    return workspaceData<SalespersonWorkspaceData>(res.data);
   } catch (err) {
     if (IS_DEMO_MODE) {
       console.info('[Demo Mode] Serving mock Salesperson Workspace data');
@@ -35,9 +51,10 @@ export async function fetchSalespersonWorkspace(): Promise<SalespersonWorkspaceD
 export async function fetchManagerWorkspace(
   range: DateRangePreset = 'mtd'
 ): Promise<ManagerWorkspaceData> {
+  if (isDemoSession()) return getMockManagerWorkspace(range);
   try {
     const res = await api.get(`/workspace/manager?range=${range}`);
-    return res.data.data;
+    return workspaceData<ManagerWorkspaceData>(res.data);
   } catch (err) {
     if (IS_DEMO_MODE) {
       console.info('[Demo Mode] Serving mock Manager Workspace data');
@@ -52,9 +69,10 @@ export async function fetchManagerWorkspace(
 export async function fetchOwnerWorkspace(
   range: DateRangePreset = 'mtd'
 ): Promise<OwnerWorkspaceData> {
+  if (isDemoSession()) return getMockOwnerWorkspace(range);
   try {
     const res = await api.get(`/workspace/owner?range=${range}`);
-    return res.data.data;
+    return workspaceData<OwnerWorkspaceData>(res.data);
   } catch (err) {
     if (IS_DEMO_MODE) {
       console.info('[Demo Mode] Serving mock Owner Workspace data');

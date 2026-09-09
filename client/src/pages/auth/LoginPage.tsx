@@ -84,6 +84,7 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email: loginEmail, password: loginPass || 'DealerPro123!' });
       const { user, accessToken, memberships } = res.data.data;
+      setAuth({ user, accessToken, memberships });
       const targetRoute =
         memberships?.[0]?.role === 'salesperson'
           ? '/my-pipeline'
