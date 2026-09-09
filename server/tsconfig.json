@@ -18,7 +18,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@crm/shared": ["../shared/src/index.ts"]
+      "@crm/shared": ["../shared/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],

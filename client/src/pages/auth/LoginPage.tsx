@@ -84,14 +84,25 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email: loginEmail, password: loginPass || 'DealerPro123!' });
       const { user, accessToken, memberships } = res.data.data;
-      setAuth({ user, accessToken, memberships });
-      navigate('/dashboard');
+      const targetRoute =
+        memberships?.[0]?.role === 'salesperson'
+          ? '/my-pipeline'
+          : memberships?.[0]?.role === 'manager'
+          ? '/team-pipeline'
+          : '/owner-overview';
+      navigate(targetRoute);
     } catch (err: unknown) {
       // If server is not reachable / returns non-auth error on static host, fallback to Demo login
       if (isDemoClick || DEMO_USERS[loginEmail.toLowerCase().trim()]) {
         const demoAuth = getDemoAuth(loginEmail);
         setAuth(demoAuth);
-        navigate('/dashboard');
+        const demoRoute =
+          demoAuth.memberships[0].role === 'salesperson'
+            ? '/my-pipeline'
+            : demoAuth.memberships[0].role === 'manager'
+            ? '/team-pipeline'
+            : '/owner-overview';
+        navigate(demoRoute);
         return;
       }
 

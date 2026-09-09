@@ -42,6 +42,7 @@ export interface Dealership {
   postal_code?: string;
   country?: string;
   status: 'trial' | 'active' | 'suspended' | 'cancelled';
+  financial_tracking_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -241,6 +242,8 @@ export interface Task {
   priority: LeadPriority;
   due_at: string;
   status: TaskStatus;
+  outcome?: string;
+  completed_by_user_id?: string;
   completed_at?: string;
   deleted_at?: string;
   deleted_by?: string;
@@ -248,6 +251,7 @@ export interface Task {
   updated_at: string;
 
   assigned_user?: Profile;
+  completed_by?: Profile;
 }
 
 export interface Appointment {
@@ -323,4 +327,48 @@ export interface AuditLog {
   user_agent?: string;
   metadata?: Record<string, any>;
   created_at: string;
+}
+
+export interface ManagerTeamMember {
+  id: string;
+  dealership_id: string;
+  manager_user_id: string;
+  salesperson_user_id: string;
+  created_at: string;
+
+  manager?: Profile;
+  salesperson?: Profile;
+}
+
+export interface LeadStageHistory {
+  id: string;
+  dealership_id: string;
+  lead_id: string;
+  from_stage_id?: string;
+  to_stage_id: string;
+  changed_by?: string;
+  changed_at: string;
+
+  from_stage?: PipelineStage;
+  to_stage?: PipelineStage;
+  changer?: Profile;
+}
+
+export interface SalesRecord {
+  id: string;
+  dealership_id: string;
+  lead_id?: string;
+  vehicle_id?: string;
+  salesperson_id?: string;
+  manager_id?: string;
+  sale_date: string;
+  sale_value: number;
+  gross_profit?: number;
+  net_profit?: number;
+  created_at: string;
+
+  lead?: Lead;
+  vehicle?: Vehicle;
+  salesperson?: Profile;
+  manager?: Profile;
 }

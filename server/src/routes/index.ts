@@ -19,6 +19,7 @@ import leadSourceRoutes from './leadSource.routes';
 import adminRoutes from './admin.routes';
 import integrationRoutes from './integration.routes';
 import webhookRoutes from './webhook.routes';
+import workspaceRoutes from './workspace.routes';
 
 const router = Router();
 
@@ -27,6 +28,7 @@ router.get('/health', (_req, res) => {
 });
 
 router.use('/auth', authRoutes);
+router.use('/workspace', workspaceRoutes);
 router.use('/dealerships', dealershipRoutes);
 router.use('/customers', customerRoutes);
 router.use('/vehicles', vehicleRoutes);

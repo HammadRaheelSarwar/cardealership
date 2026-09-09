@@ -1,7 +1,12 @@
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useActiveMembershipRole } from '@/store/authStore';
+import { PageSkeleton } from '@/components/common/PageSkeleton';
 
-// Layouts
+// Role-Aware Workspace Layouts
+import { SalesWorkspaceLayout } from '@/layouts/SalesWorkspaceLayout';
+import { ManagerWorkspaceLayout } from '@/layouts/ManagerWorkspaceLayout';
+import { OwnerWorkspaceLayout } from '@/layouts/OwnerWorkspaceLayout';
 import { AppLayout } from '@/layouts/AppLayout';
 import { PublicLayout } from '@/layouts/PublicLayout';
 
@@ -11,13 +16,14 @@ import RegisterPage from '@/pages/auth/RegisterPage';
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 
-// App pages (lazy loaded for code splitting)
-import { lazy, Suspense } from 'react';
-import { PageSkeleton } from '@/components/common/PageSkeleton';
+// Role-Specific Dashboards
+const SalespersonDashboard = lazy(() => import('@/pages/app/SalespersonDashboard'));
+const ManagerDashboard = lazy(() => import('@/pages/app/ManagerDashboard'));
+const OwnerDashboard = lazy(() => import('@/pages/app/OwnerDashboard'));
 
-const DashboardPage = lazy(() => import('@/pages/app/DashboardPage'));
-const LeadsPage = lazy(() => import('@/pages/app/LeadsPage'));
+// Reused App Pages
 const LeadDetailPage = lazy(() => import('@/pages/app/LeadDetailPage'));
+const LeadsPage = lazy(() => import('@/pages/app/LeadsPage'));
 const PipelinePage = lazy(() => import('@/pages/app/PipelinePage'));
 const InboxPage = lazy(() => import('@/pages/app/InboxPage'));
 const CustomersPage = lazy(() => import('@/pages/app/CustomersPage'));
@@ -26,19 +32,18 @@ const VehiclesPage = lazy(() => import('@/pages/app/VehiclesPage'));
 const VehicleDetailPage = lazy(() => import('@/pages/app/VehicleDetailPage'));
 const TasksPage = lazy(() => import('@/pages/app/TasksPage'));
 const AppointmentsPage = lazy(() => import('@/pages/app/AppointmentsPage'));
-const AutomationPage = lazy(() => import('@/pages/app/AutomationPage'));
-const AutomationDetailPage = lazy(() => import('@/pages/app/AutomationDetailPage'));
-const AIPage = lazy(() => import('@/pages/app/AIPage'));
 const ReportsPage = lazy(() => import('@/pages/app/ReportsPage'));
+const ActivityCoachingPage = lazy(() => import('@/pages/app/ActivityCoachingPage'));
 const TeamPage = lazy(() => import('@/pages/app/TeamPage'));
 const IntegrationsPage = lazy(() => import('@/pages/app/IntegrationsPage'));
 const SettingsPage = lazy(() => import('@/pages/app/SettingsPage'));
+const AutomationPage = lazy(() => import('@/pages/app/AutomationPage'));
+const AutomationDetailPage = lazy(() => import('@/pages/app/AutomationDetailPage'));
+const AIPage = lazy(() => import('@/pages/app/AIPage'));
 
-// Admin pages
+// Admin & Public pages
 const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage'));
 const AdminDealershipsPage = lazy(() => import('@/pages/admin/AdminDealershipsPage'));
-
-// Public/marketing pages
 const LandingPage = lazy(() => import('@/pages/public/LandingPage'));
 
 // ─── Guards ───────────────────────────────────────────────────────────────────
@@ -51,15 +56,41 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  const role = useActiveMembershipRole();
+
+  if (isAuthenticated) {
+    if (role === 'salesperson') return <Navigate to="/my-pipeline" replace />;
+    if (role === 'manager') return <Navigate to="/team-pipeline" replace />;
+    return <Navigate to="/owner-overview" replace />;
+  }
   return <>{children}</>;
 }
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated } = useAuthStore();
+function RoleGuard({
+  allowedRoles,
+  children,
+}: {
+  allowedRoles: Array<'salesperson' | 'manager' | 'owner'>;
+  children: React.ReactNode;
+}) {
+  const { isAuthenticated } = useAuthStore();
+  const role = useActiveMembershipRole() as 'salesperson' | 'manager' | 'owner' | null;
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (user?.platformRole !== 'superAdmin') return <Navigate to="/dashboard" replace />;
+  if (role && !allowedRoles.includes(role)) {
+    // Redirect to user's assigned role home
+    if (role === 'salesperson') return <Navigate to="/my-pipeline" replace />;
+    if (role === 'manager') return <Navigate to="/team-pipeline" replace />;
+    return <Navigate to="/owner-overview" replace />;
+  }
   return <>{children}</>;
+}
+
+function RoleHomeRedirect() {
+  const role = useActiveMembershipRole();
+  if (role === 'salesperson') return <Navigate to="/my-pipeline" replace />;
+  if (role === 'manager') return <Navigate to="/team-pipeline" replace />;
+  return <Navigate to="/owner-overview" replace />;
 }
 
 // ─── App Routes ───────────────────────────────────────────────────────────────
@@ -79,34 +110,84 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
-        {/* ── App (protected) ── */}
-        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/leads" element={<LeadsPage />} />
-          <Route path="/leads/:id" element={<LeadDetailPage />} />
-          <Route path="/pipeline" element={<PipelinePage />} />
+        {/* ── 1. SALESPERSON WORKSPACE ROUTES (§3, §4, §24) ── */}
+        <Route
+          element={
+            <RoleGuard allowedRoles={['salesperson']}>
+              <SalesWorkspaceLayout />
+            </RoleGuard>
+          }
+        >
+          <Route path="/my-pipeline" element={<SalespersonDashboard />} />
+          <Route path="/my-tasks" element={<TasksPage />} />
           <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/appointments" element={<AppointmentsPage />} />
+          <Route path="/leads/:id" element={<LeadDetailPage />} />
+        </Route>
+
+        {/* ── 2. MANAGER WORKSPACE ROUTES (§3, §12, §24) ── */}
+        <Route
+          element={
+            <RoleGuard allowedRoles={['manager', 'owner']}>
+              <ManagerWorkspaceLayout />
+            </RoleGuard>
+          }
+        >
+          <Route path="/team-pipeline" element={<ManagerDashboard />} />
+          <Route path="/team-tasks" element={<TasksPage />} />
+          <Route path="/salespeople" element={<TeamPage />} />
+          <Route path="/salespeople/:id" element={<TeamPage />} />
+          <Route path="/performance" element={<ActivityCoachingPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+        </Route>
+
+        {/* ── 3. OWNER WORKSPACE ROUTES (§3, §18, §24) ── */}
+        <Route
+          element={
+            <RoleGuard allowedRoles={['owner']}>
+              <OwnerWorkspaceLayout />
+            </RoleGuard>
+          }
+        >
+          <Route path="/owner-overview" element={<OwnerDashboard />} />
+          <Route path="/managers" element={<TeamPage />} />
+          <Route path="/sales" element={<ReportsPage />} />
+          <Route path="/conversion" element={<ReportsPage />} />
+          <Route path="/financial-reports" element={<ReportsPage />} />
+          <Route path="/team" element={<TeamPage />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/automation" element={<AutomationPage />} />
+          <Route path="/automation/:id" element={<AutomationDetailPage />} />
+          <Route path="/ai" element={<AIPage />} />
+        </Route>
+
+        {/* ── General Leads & Inventory Workspace ── */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/leads" element={<LeadsPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/:id" element={<CustomerDetailPage />} />
           <Route path="/vehicles" element={<VehiclesPage />} />
           <Route path="/vehicles/:id" element={<VehicleDetailPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/appointments" element={<AppointmentsPage />} />
-          <Route path="/automation" element={<AutomationPage />} />
-          <Route path="/automation/:id" element={<AutomationDetailPage />} />
-          <Route path="/ai" element={<AIPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/team" element={<TeamPage />} />
-          <Route path="/integrations" element={<IntegrationsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/pipeline" element={<PipelinePage />} />
         </Route>
 
-        {/* ── Super Admin ── */}
-        <Route element={<AdminRoute><AppLayout /></AdminRoute>}>
-          <Route path="/admin" element={<AdminDashboardPage />} />
-          <Route path="/admin/dealerships" element={<AdminDealershipsPage />} />
-        </Route>
+        {/* ── Smart Role Dashboard Redirect ── */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <RoleHomeRedirect />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/app" element={<Navigate to="/dashboard" replace />} />
 
         {/* ── Fallback ── */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
