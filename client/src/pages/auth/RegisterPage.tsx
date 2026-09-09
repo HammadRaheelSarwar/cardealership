@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Car, CheckCircle2, ChevronRight, ChevronLeft, Building2,
-  Users, GitMerge, ShieldCheck, AlertCircle, ArrowRight
+  Car,
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+  Building2,
+  Users,
+  GitMerge,
+  ShieldCheck,
+  AlertCircle,
+  ArrowRight,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/services/api';
@@ -12,7 +20,7 @@ const STEPS = [
   { id: 2, label: 'Dealership Profile' },
   { id: 3, label: 'Location & Timezone' },
   { id: 4, label: 'Sales Pipeline' },
-  { id: 5, label: 'Invite Team' },
+  { id: 5, label: 'Finish setup' },
 ];
 
 export default function RegisterPage() {
@@ -20,6 +28,13 @@ export default function RegisterPage() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const [step, setStep] = useState(1);
+  const [registered, setRegistered] = useState<any>(() => {
+    const state = useAuthStore.getState();
+    return state.isAuthenticated
+      ? { user: state.user, accessToken: state.accessToken }
+      : null;
+  });
+  const [createdDealership, setCreatedDealership] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,13 +60,17 @@ export default function RegisterPage() {
     zip: '',
 
     // Step 4: Pipeline stages review (fixed default presets)
-    stages: ['New', 'Contacted', 'Follow-Up', 'Appointment', 'Negotiation', 'Sold', 'Lost'],
+    stages: [
+      'New',
+      'Contacted',
+      'Follow-Up',
+      'Appointment',
+      'Negotiation',
+      'Sold',
+      'Lost',
+    ],
 
     // Step 5: Team Invites
-    inviteEmail1: '',
-    inviteRole1: 'salesperson',
-    inviteEmail2: '',
-    inviteRole2: 'manager',
   });
 
   const updateField = (field: string, value: string) => {
@@ -74,32 +93,38 @@ export default function RegisterPage() {
 
     try {
       // 1. Register User Account
-      const regRes = await api.post('/auth/register', {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone || undefined,
-        password: formData.password,
-      });
+      const regRes = registered
+        ? { data: { data: registered } }
+        : await api.post('/auth/register', {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            phone: formData.phone || undefined,
+            password: formData.password,
+          });
 
       const { user, accessToken } = regRes.data.data;
+      setRegistered(regRes.data.data);
 
       // 2. Set token temporarily in headers to authorize dealership creation
-      api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      useAuthStore.getState().setAccessToken(accessToken);
 
       // 3. Create Dealership
-      await api.post('/dealerships', {
-        name: formData.dealershipName,
-        email: formData.dealershipEmail || formData.email,
-        website: formData.website || undefined,
-        timezone: formData.timezone,
-        address: {
-          street: formData.street,
-          city: formData.city,
-          state: formData.state,
-          zip: formData.zip,
-        },
-      });
+      if (!createdDealership)
+        await api.post('/dealerships', {
+          name: formData.dealershipName,
+          email: formData.dealershipEmail || formData.email,
+          website: formData.website || undefined,
+          timezone: formData.timezone,
+          address: {
+            street: formData.street,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+          },
+        });
+
+      setCreatedDealership(true);
 
       // 4. Fetch updated me with active membership
       const meRes = await api.get('/auth/me');
@@ -108,43 +133,11 @@ export default function RegisterPage() {
       setAuth({ user, accessToken, memberships });
       navigate('/dashboard');
     } catch (err: any) {
-      if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        // Static host fallback: initialize demo owner session with user's inputs
-        const demoUser = {
-          _id: `user-${Date.now()}`,
-          firstName: formData.firstName || 'Dealership',
-          lastName: formData.lastName || 'Owner',
-          email: formData.email || 'owner@dealership.com',
-          platformRole: 'user' as const,
-          status: 'active' as const,
-          emailVerified: true,
-        };
-
-        const demoMemberships = [
-          {
-            _id: `mem-${Date.now()}`,
-            dealershipId: {
-              _id: `dealership-${Date.now()}`,
-              name: formData.dealershipName || 'My Dealership',
-              slug: (formData.dealershipName || 'my-dealership').toLowerCase().replace(/\s+/g, '-'),
-              status: 'active',
-              timezone: formData.timezone || 'America/New_York',
-            },
-            role: 'owner' as const,
-            permissions: ['*'],
-            status: 'active',
-          },
-        ];
-
-        setAuth({
-          user: demoUser,
-          accessToken: 'demo-registered-access-token',
-          memberships: demoMemberships,
-        });
-        navigate('/dashboard');
-      }
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          'Unable to create your account. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -159,11 +152,18 @@ export default function RegisterPage() {
             <Car className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-text-primary">Set Up Your Dealership</h1>
-            <p className="text-xs text-text-secondary">Step {step} of 5 — {STEPS[step - 1].label}</p>
+            <h1 className="text-xl font-bold text-text-primary">
+              Set Up Your Dealership
+            </h1>
+            <p className="text-xs text-text-secondary">
+              Step {step} of 5 — {STEPS[step - 1].label}
+            </p>
           </div>
         </div>
-        <Link to="/login" className="text-xs font-medium text-text-secondary hover:text-text-primary">
+        <Link
+          to="/login"
+          className="text-xs font-medium text-text-secondary hover:text-text-primary"
+        >
           Cancel
         </Link>
       </div>
@@ -177,8 +177,8 @@ export default function RegisterPage() {
                 s.id === step
                   ? 'bg-primary text-white shadow'
                   : s.id < step
-                  ? 'bg-green-100 text-success'
-                  : 'bg-bg-secondary text-text-muted border border-border-light'
+                    ? 'bg-green-100 text-success'
+                    : 'bg-bg-secondary text-text-muted border border-border-light'
               }`}
             >
               {s.id < step ? <CheckCircle2 className="w-4 h-4" /> : s.id}
@@ -291,7 +291,7 @@ export default function RegisterPage() {
                 required
                 value={formData.dealershipName}
                 onChange={(e) => updateField('dealershipName', e.target.value)}
-                placeholder="Premier Auto Group"
+                placeholder="Your dealership name"
                 className="crm-input"
               />
             </div>
@@ -336,10 +336,18 @@ export default function RegisterPage() {
                 onChange={(e) => updateField('timezone', e.target.value)}
                 className="crm-input"
               >
-                <option value="America/New_York">Eastern Time (US & Canada)</option>
-                <option value="America/Chicago">Central Time (US & Canada)</option>
-                <option value="America/Denver">Mountain Time (US & Canada)</option>
-                <option value="America/Los_Angeles">Pacific Time (US & Canada)</option>
+                <option value="America/New_York">
+                  Eastern Time (US & Canada)
+                </option>
+                <option value="America/Chicago">
+                  Central Time (US & Canada)
+                </option>
+                <option value="America/Denver">
+                  Mountain Time (US & Canada)
+                </option>
+                <option value="America/Los_Angeles">
+                  Pacific Time (US & Canada)
+                </option>
                 <option value="America/Phoenix">Arizona (MST - no DST)</option>
               </select>
             </div>
@@ -402,25 +410,59 @@ export default function RegisterPage() {
         {step === 4 && (
           <div className="space-y-4 animate-fade-in">
             <p className="text-xs text-text-secondary">
-              We configure your sales pipeline with automotive industry best practice stages:
+              We configure your sales pipeline with automotive industry best
+              practice stages:
             </p>
             <div className="space-y-2">
               {[
-                { name: 'New Lead', color: '#2563EB', desc: 'Incoming web, phone, or lot inquiry' },
-                { name: 'Contacted', color: '#7C3AED', desc: 'First two-way communication established' },
-                { name: 'Follow-Up', color: '#F59E0B', desc: 'Scheduled follow-up sequence active' },
-                { name: 'Appointment', color: '#0891B2', desc: 'Showroom test drive or visit booked' },
-                { name: 'Negotiation', color: '#EA580C', desc: 'Price or financing term discussed' },
-                { name: 'Sold', color: '#16A34A', desc: 'Deal closed and vehicle delivered' },
-                { name: 'Lost', color: '#DC2626', desc: 'Customer purchased elsewhere or cold' },
+                {
+                  name: 'New Lead',
+                  color: '#2563EB',
+                  desc: 'Incoming web, phone, or lot inquiry',
+                },
+                {
+                  name: 'Contacted',
+                  color: '#7C3AED',
+                  desc: 'First two-way communication established',
+                },
+                {
+                  name: 'Follow-Up',
+                  color: '#F59E0B',
+                  desc: 'Scheduled follow-up sequence active',
+                },
+                {
+                  name: 'Appointment',
+                  color: '#0891B2',
+                  desc: 'Showroom test drive or visit booked',
+                },
+                {
+                  name: 'Negotiation',
+                  color: '#EA580C',
+                  desc: 'Price or financing term discussed',
+                },
+                {
+                  name: 'Sold',
+                  color: '#16A34A',
+                  desc: 'Deal closed and vehicle delivered',
+                },
+                {
+                  name: 'Lost',
+                  color: '#DC2626',
+                  desc: 'Customer purchased elsewhere or cold',
+                },
               ].map((st, i) => (
                 <div
                   key={st.name}
                   className="flex items-center justify-between p-2.5 bg-bg-secondary border border-border-light rounded-lg text-xs"
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: st.color }} />
-                    <span className="font-semibold text-text-primary">{st.name}</span>
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: st.color }}
+                    />
+                    <span className="font-semibold text-text-primary">
+                      {st.name}
+                    </span>
                   </div>
                   <span className="text-text-muted">{st.desc}</span>
                 </div>
@@ -431,55 +473,14 @@ export default function RegisterPage() {
 
         {/* STEP 5: Invite Team */}
         {step === 5 && (
-          <div className="space-y-4 animate-fade-in">
-            <p className="text-xs text-text-secondary">
-              Optionally invite key team members now, or configure them later in Settings:
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold">
+              Ready to create your dealership
+            </h2>
+            <p className="text-sm text-gray-500">
+              Your workspace starts with no customers, inventory, or sales.
+              Invite your team from the Team page after setup.
             </p>
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="email"
-                  value={formData.inviteEmail1}
-                  onChange={(e) => updateField('inviteEmail1', e.target.value)}
-                  placeholder="manager@premierautogroup.com"
-                  className="crm-input col-span-2 text-xs"
-                />
-                <select
-                  value={formData.inviteRole1}
-                  onChange={(e) => updateField('inviteRole1', e.target.value)}
-                  className="crm-input text-xs"
-                >
-                  <option value="manager">Manager</option>
-                  <option value="salesperson">Salesperson</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="email"
-                  value={formData.inviteEmail2}
-                  onChange={(e) => updateField('inviteEmail2', e.target.value)}
-                  placeholder="sales@premierautogroup.com"
-                  className="crm-input col-span-2 text-xs"
-                />
-                <select
-                  value={formData.inviteRole2}
-                  onChange={(e) => updateField('inviteRole2', e.target.value)}
-                  className="crm-input text-xs"
-                >
-                  <option value="salesperson">Salesperson</option>
-                  <option value="manager">Manager</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-primary flex items-start gap-2">
-              <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                As Dealership Owner, you have full administrative rights over pipeline stages, user roles, reporting, and settings.
-              </span>
-            </div>
           </div>
         )}
 

@@ -4,13 +4,13 @@ export const registerSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required').max(100),
   lastName: z.string().trim().min(1, 'Last name is required').max(100),
   email: z.string().email('Invalid email address').toLowerCase().trim(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
   phone: z.string().trim().optional(),
 });
 
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address').toLowerCase().trim(),
-  password: z.string().optional(),
+  password: z.string().min(1, 'Password is required'),
 });
 
 export const forgotPasswordSchema = z.object({

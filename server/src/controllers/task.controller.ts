@@ -3,11 +3,17 @@ import { supabase } from '../config/supabase';
 import { AppError } from '../utils/AppError';
 import { sendSuccess } from '../utils/response';
 
-export async function getTasks(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getTasks(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     let query = supabase
       .from('tasks')
-      .select('*, assigned_user:profiles(*), lead:leads(*), customer:customers(*)')
+      .select(
+        '*, assigned_user:profiles!tasks_assigned_user_id_fkey(*), lead:leads(*), customer:customers(*)'
+      )
       .eq('dealership_id', req.tenant.dealershipId)
       .is('deleted_at', null);
 
@@ -15,7 +21,9 @@ export async function getTasks(req: Request, res: Response, next: NextFunction):
       query = query.eq('assigned_user_id', req.user.id);
     }
 
-    const { data: tasks, error } = await query.order('due_at', { ascending: true });
+    const { data: tasks, error } = await query.order('due_at', {
+      ascending: true,
+    });
     if (error) throw new AppError(error.message, 500);
 
     sendSuccess(res, { data: tasks || [] });
@@ -24,7 +32,11 @@ export async function getTasks(req: Request, res: Response, next: NextFunction):
   }
 }
 
-export async function createTask(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createTask(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const body = req.body;
     const { data: task, error } = await supabase
@@ -42,25 +54,38 @@ export async function createTask(req: Request, res: Response, next: NextFunction
         due_at: new Date(body.dueAt).toISOString(),
         status: 'pending',
       })
-      .select('*, assigned_user:profiles(*)')
+      .select('*, assigned_user:profiles!tasks_assigned_user_id_fkey(*)')
       .single();
 
-    if (error || !task) throw new AppError(`Failed to create task: ${error?.message}`, 400);
+    if (error || !task)
+      throw new AppError(`Failed to create task: ${error?.message}`, 400);
 
-    sendSuccess(res, { statusCode: 201, message: 'Task created', data: { task } });
+    sendSuccess(res, {
+      statusCode: 201,
+      message: 'Task created',
+      data: { task },
+    });
   } catch (err) {
     next(err);
   }
 }
 
-export async function updateTaskStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateTaskStatus(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
-    const { status } = req.body as { status: 'pending' | 'completed' | 'cancelled' };
+    const { status } = req.body as {
+      status: 'pending' | 'completed' | 'cancelled';
+    };
     const { data: task, error } = await supabase
       .from('tasks')
       .update({
         status,
-        ...(status === 'completed' ? { completed_at: new Date().toISOString() } : {}),
+        ...(status === 'completed'
+          ? { completed_at: new Date().toISOString() }
+          : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', req.params.id)
@@ -70,7 +95,10 @@ export async function updateTaskStatus(req: Request, res: Response, next: NextFu
 
     if (error || !task) throw new AppError('Task not found', 404);
 
-    sendSuccess(res, { message: `Task status updated to ${status}`, data: { task } });
+    sendSuccess(res, {
+      message: `Task status updated to ${status}`,
+      data: { task },
+    });
   } catch (err) {
     next(err);
   }

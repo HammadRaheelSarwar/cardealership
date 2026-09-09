@@ -1,8 +1,20 @@
+import { useLiveQuery } from '@/hooks/useLiveQuery';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Phone, MessageSquare, Mail, Calendar, CheckCircle2, Clock,
-  ArrowRight, Sparkles, Filter, AlertCircle, X, ChevronRight, Check
+  Phone,
+  MessageSquare,
+  Mail,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  Sparkles,
+  Filter,
+  AlertCircle,
+  X,
+  ChevronRight,
+  Check,
 } from 'lucide-react';
 import {
   fetchSalespersonWorkspace,
@@ -17,41 +29,40 @@ import type {
 
 export default function SalespersonDashboard() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [workspace, setWorkspace] = useState<SalespersonWorkspaceData | null>(null);
 
   // Selected stage filter from clicking stage numbers
-  const [selectedStageFilter, setSelectedStageFilter] = useState<string | null>(null);
+  const [selectedStageFilter, setSelectedStageFilter] = useState<string | null>(
+    null
+  );
 
   // Stage Customer List Drawer
   const [stageCustomersModal, setStageCustomersModal] = useState<{
     stageName: string;
-    customers: Array<{ name: string; vehicle: string; phone: string; stage: string }>;
+    customers: Array<{
+      name: string;
+      vehicle: string;
+      phone: string;
+      stage: string;
+    }>;
   } | null>(null);
 
   // Task Completion Modal ("What happened?")
-  const [completingTask, setCompletingTask] = useState<DoNextTaskItem | null>(null);
+  const [completingTask, setCompletingTask] = useState<DoNextTaskItem | null>(
+    null
+  );
   const [outcome, setOutcome] = useState<TaskOutcome>('spoke_with_customer');
   const [nextTaskTitle, setNextTaskTitle] = useState('');
   const [lostReason, setLostReason] = useState<LostReason>('not_interested');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadWorkspace();
-  }, []);
-
+  const workspaceQuery = useLiveQuery(['workspace', 'salesperson'], () =>
+    fetchSalespersonWorkspace()
+  );
+  const workspace = workspaceQuery.data;
+  const loading = workspaceQuery.isPending;
+  const error = workspaceQuery.error?.message;
   const loadWorkspace = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchSalespersonWorkspace();
-      setWorkspace(data);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load salesperson workspace.');
-    } finally {
-      setLoading(false);
-    }
+    await workspaceQuery.refetch();
   };
 
   const handleTaskCompleteSubmit = async (e: React.FormEvent) => {
@@ -62,24 +73,20 @@ export default function SalespersonDashboard() {
       setIsSubmitting(true);
       await completeTask(completingTask.id, {
         outcome,
-        nextTask: nextTaskTitle ? {
-          type: 'follow_up',
-          title: nextTaskTitle,
-          dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        } : undefined,
-        lostReason: outcome === 'not_interested' || outcome === 'purchased_elsewhere' ? lostReason : undefined,
+        nextTask: nextTaskTitle
+          ? {
+              type: 'follow_up',
+              title: nextTaskTitle,
+              dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            }
+          : undefined,
+        lostReason:
+          outcome === 'not_interested' || outcome === 'purchased_elsewhere'
+            ? lostReason
+            : undefined,
       });
 
-      // Optimistically decrement Task Zero remaining counter
-      if (workspace) {
-        const remaining = Math.max(0, workspace.tasksRemainingToday - 1);
-        const updatedTasks = workspace.doNextTasks.filter((t) => t.id !== completingTask.id);
-        setWorkspace({
-          ...workspace,
-          tasksRemainingToday: remaining,
-          doNextTasks: updatedTasks,
-        });
-      }
+      await loadWorkspace();
 
       setCompletingTask(null);
       setNextTaskTitle('');
@@ -91,16 +98,7 @@ export default function SalespersonDashboard() {
   };
 
   const handleStageCustomerClick = (stage: any) => {
-    // Generate realistic demo customers for the clicked stage
-    const sampleCusts = [
-      { name: 'John Carter', vehicle: '2024 Toyota Camry XSE', phone: '+1 (555) 301-4492', stage: stage.name },
-      { name: 'Sarah Williams', vehicle: '2023 BMW 330i xDrive', phone: '+1 (555) 892-1144', stage: stage.name },
-      { name: 'Mike Thompson', vehicle: '2024 Ford F-150 Lariat', phone: '+1 (555) 431-7729', stage: stage.name },
-    ];
-    setStageCustomersModal({
-      stageName: stage.name,
-      customers: sampleCusts,
-    });
+    navigate(`/leads?stageId=${stage.stageId}`);
   };
 
   if (loading) {
@@ -117,8 +115,12 @@ export default function SalespersonDashboard() {
     return (
       <div className="p-6 max-w-xl mx-auto bg-red-950/20 border border-red-500/30 rounded-xl text-center space-y-3">
         <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-        <h3 className="text-sm font-semibold text-white">Error Loading Salesperson Workspace</h3>
-        <p className="text-xs text-[#A0A0A0]">{error || 'Unable to retrieve workspace data.'}</p>
+        <h3 className="text-sm font-semibold text-white">
+          Error Loading Salesperson Workspace
+        </h3>
+        <p className="text-xs text-[#A0A0A0]">
+          {error || 'Unable to retrieve workspace data.'}
+        </p>
         <button onClick={loadWorkspace} className="btn-secondary btn-sm mt-2">
           Retry
         </button>
@@ -149,7 +151,9 @@ export default function SalespersonDashboard() {
             ) : (
               <>
                 You have{' '}
-                <span className="text-[#E6C85C] font-semibold">{workspace.tasksRemainingToday} tasks</span>{' '}
+                <span className="text-[#E6C85C] font-semibold">
+                  {workspace.tasksRemainingToday} tasks
+                </span>{' '}
                 to complete today.
               </>
             )}
@@ -159,10 +163,16 @@ export default function SalespersonDashboard() {
         {/* Task Zero Counter Pill (§28) */}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#121212] border border-[rgba(212,175,55,0.3)] rounded-lg">
           <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span className="text-xs font-semibold text-white">TODAY'S TASKS:</span>
-          <span className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded ${
-            isTaskZero ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#D4AF37]/20 text-[#E6C85C]'
-          }`}>
+          <span className="text-xs font-semibold text-white">
+            TODAY'S TASKS:
+          </span>
+          <span
+            className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded ${
+              isTaskZero
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : 'bg-[#D4AF37]/20 text-[#E6C85C]'
+            }`}
+          >
             {workspace.tasksRemainingToday} remaining
           </span>
         </div>
@@ -223,9 +233,13 @@ export default function SalespersonDashboard() {
 
                 {/* Clickable Tasks Due Count */}
                 <div
-                  onClick={() => setSelectedStageFilter(isSelected ? null : stage.slug)}
+                  onClick={() =>
+                    setSelectedStageFilter(isSelected ? null : stage.slug)
+                  }
                   className={`mt-2 pt-2 border-t border-[rgba(255,255,255,0.04)] flex items-center justify-between cursor-pointer group ${
-                    stage.tasksDueCount > 0 ? 'text-[#E6C85C]' : 'text-[#6E6E6E]'
+                    stage.tasksDueCount > 0
+                      ? 'text-[#E6C85C]'
+                      : 'text-[#6E6E6E]'
                   }`}
                   title="Click to filter Do Next tasks for this stage"
                 >
@@ -246,11 +260,17 @@ export default function SalespersonDashboard() {
               Results:
             </span>
             <span className="text-white font-medium">
-              Sold: <span className="font-mono text-emerald-400 font-semibold">{workspace.results.soldThisMonth}</span> units this month (${(workspace.results.soldRevenueThisMonth / 1000).toFixed(0)}k)
+              Sold:{' '}
+              <span className="font-mono text-emerald-400 font-semibold">
+                {workspace.results.soldThisMonth}
+              </span>{' '}
+              units this month ($
+              {(workspace.results.soldRevenueThisMonth / 1000).toFixed(0)}k)
             </span>
           </div>
           <div className="text-[#6E6E6E]">
-            Lost: <span className="font-mono">{workspace.results.lostThisMonth}</span>
+            Lost:{' '}
+            <span className="font-mono">{workspace.results.lostThisMonth}</span>
           </div>
         </div>
       </div>
@@ -266,19 +286,29 @@ export default function SalespersonDashboard() {
                   Next Up
                 </span>
                 <span className="text-white/20">•</span>
-                <span className="text-xs text-[#B8B8B8]">{workspace.nextBestTask.reason}</span>
+                <span className="text-xs text-[#B8B8B8]">
+                  {workspace.nextBestTask.reason}
+                </span>
               </div>
               <h3 className="text-base font-semibold text-white">
-                {workspace.nextBestTask.title} — {workspace.nextBestTask.vehicle}
+                {workspace.nextBestTask.title} —{' '}
+                {workspace.nextBestTask.vehicle}
               </h3>
               <p className="text-xs text-[#8C8C8C]">
-                Customer: <span className="text-white">{workspace.nextBestTask.customerName}</span> · Inquiry: {workspace.nextBestTask.inquiryTimeAgo}
+                Customer:{' '}
+                <span className="text-white">
+                  {workspace.nextBestTask.customerName}
+                </span>{' '}
+                · Inquiry: {workspace.nextBestTask.inquiryTimeAgo}
               </p>
             </div>
 
             <button
               onClick={() => {
-                const target = workspace.doNextTasks.find((t) => t.id === workspace.nextBestTask?.id) || workspace.doNextTasks[0];
+                const target =
+                  workspace.doNextTasks.find(
+                    (t) => t.id === workspace.nextBestTask?.id
+                  ) || workspace.doNextTasks[0];
                 if (target) setCompletingTask(target);
               }}
               className="btn-primary btn-sm px-4 py-2 self-start sm:self-auto gap-1.5 font-semibold"
@@ -296,15 +326,21 @@ export default function SalespersonDashboard() {
           <h2 className="text-xs font-bold text-[#6E6E6E] uppercase tracking-wider">
             Do Next ({filteredTasks.length})
           </h2>
-          <span className="text-[11px] text-[#8C8C8C]">Sorted by priority & urgency</span>
+          <span className="text-[11px] text-[#8C8C8C]">
+            Sorted by priority & urgency
+          </span>
         </div>
 
         {filteredTasks.length === 0 ? (
           <div className="py-12 text-center rounded-xl bg-[#0B0B0B] border border-[rgba(255,255,255,0.06)] space-y-2">
             <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-            <p className="text-sm font-semibold text-white">No tasks due in this view</p>
+            <p className="text-sm font-semibold text-white">
+              No tasks due in this view
+            </p>
             <p className="text-xs text-[#8C8C8C]">
-              {selectedStageFilter ? 'All tasks for this stage are completed.' : "You're caught up for today."}
+              {selectedStageFilter
+                ? 'All tasks for this stage are completed.'
+                : "You're caught up for today."}
             </p>
           </div>
         ) : (
@@ -330,7 +366,9 @@ export default function SalespersonDashboard() {
 
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-[#E6C85C]">{t.dueTime}</span>
+                      <span className="text-xs font-mono text-[#E6C85C]">
+                        {t.dueTime}
+                      </span>
                       <span className="text-white/20">•</span>
                       <span className="text-xs font-semibold text-white group-hover:text-[#E6C85C] transition-colors">
                         {t.title}
@@ -374,8 +412,12 @@ export default function SalespersonDashboard() {
           <div className="bg-[#0F0F0F] border border-[rgba(212,175,55,0.3)] rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
               <div>
-                <h3 className="text-sm font-semibold text-white">Complete Task</h3>
-                <p className="text-xs text-[#8C8C8C]">{completingTask.title} · {completingTask.customerName}</p>
+                <h3 className="text-sm font-semibold text-white">
+                  Complete Task
+                </h3>
+                <p className="text-xs text-[#8C8C8C]">
+                  {completingTask.title} · {completingTask.customerName}
+                </p>
               </div>
               <button
                 onClick={() => setCompletingTask(null)}
@@ -389,15 +431,21 @@ export default function SalespersonDashboard() {
             <div className="p-3 bg-[#161616] rounded-lg text-xs space-y-1">
               <div className="flex justify-between">
                 <span className="text-[#8C8C8C]">Vehicle:</span>
-                <span className="text-white font-medium">{completingTask.vehicle}</span>
+                <span className="text-white font-medium">
+                  {completingTask.vehicle}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#8C8C8C]">Current Stage:</span>
-                <span className="text-[#E6C85C]">{completingTask.stageName}</span>
+                <span className="text-[#E6C85C]">
+                  {completingTask.stageName}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#8C8C8C]">Last Note:</span>
-                <span className="text-white truncate max-w-[200px]">{completingTask.lastMessageText}</span>
+                <span className="text-white truncate max-w-[200px]">
+                  {completingTask.lastMessageText}
+                </span>
               </div>
             </div>
 
@@ -410,12 +458,21 @@ export default function SalespersonDashboard() {
                 <div className="grid grid-cols-1 gap-1.5">
                   {[
                     { id: 'spoke_with_customer', label: 'Spoke With Customer' },
-                    { id: 'appointment_set', label: 'Appointment Set (Auto-advance stage)' },
+                    {
+                      id: 'appointment_set',
+                      label: 'Appointment Set (Auto-advance stage)',
+                    },
                     { id: 'no_answer', label: 'No Answer' },
                     { id: 'follow_up_needed', label: 'Follow-Up Needed' },
                     { id: 'moved_to_next_stage', label: 'Move to Next Stage' },
-                    { id: 'not_interested', label: 'Customer Not Interested (Mark Lost)' },
-                    { id: 'purchased_elsewhere', label: 'Customer Purchased Elsewhere' },
+                    {
+                      id: 'not_interested',
+                      label: 'Customer Not Interested (Mark Lost)',
+                    },
+                    {
+                      id: 'purchased_elsewhere',
+                      label: 'Customer Purchased Elsewhere',
+                    },
                   ].map((opt) => (
                     <label
                       key={opt.id}
@@ -440,21 +497,28 @@ export default function SalespersonDashboard() {
               </div>
 
               {/* Lost Reason if customer exited */}
-              {(outcome === 'not_interested' || outcome === 'purchased_elsewhere') && (
+              {(outcome === 'not_interested' ||
+                outcome === 'purchased_elsewhere') && (
                 <div className="space-y-1.5 p-3 bg-red-950/20 border border-red-500/30 rounded-lg">
                   <label className="block text-[10px] font-bold text-red-300 uppercase tracking-wider">
                     Select Lost Reason:
                   </label>
                   <select
                     value={lostReason}
-                    onChange={(e) => setLostReason(e.target.value as LostReason)}
+                    onChange={(e) =>
+                      setLostReason(e.target.value as LostReason)
+                    }
                     className="w-full bg-[#111111] border border-red-500/30 rounded p-2 text-xs text-white"
                   >
                     <option value="not_interested">Not Interested</option>
-                    <option value="purchased_elsewhere">Purchased Elsewhere</option>
+                    <option value="purchased_elsewhere">
+                      Purchased Elsewhere
+                    </option>
                     <option value="price">Price / Payment</option>
                     <option value="financing">Financing Declined</option>
-                    <option value="vehicle_unavailable">Vehicle Unavailable</option>
+                    <option value="vehicle_unavailable">
+                      Vehicle Unavailable
+                    </option>
                     <option value="no_response">No Response</option>
                   </select>
                 </div>
@@ -527,11 +591,15 @@ export default function SalespersonDashboard() {
                   className="p-3 bg-[#141414] hover:bg-[#1A1A1A] border border-white/[0.06] rounded-lg flex items-center justify-between cursor-pointer transition"
                 >
                   <div>
-                    <h4 className="text-xs font-semibold text-white">{c.name}</h4>
+                    <h4 className="text-xs font-semibold text-white">
+                      {c.name}
+                    </h4>
                     <p className="text-[11px] text-[#8C8C8C]">{c.vehicle}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono text-[#D4AF37]">{c.phone}</span>
+                    <span className="text-[11px] font-mono text-[#D4AF37]">
+                      {c.phone}
+                    </span>
                     <ChevronRight className="w-3.5 h-3.5 text-[#6E6E6E]" />
                   </div>
                 </div>

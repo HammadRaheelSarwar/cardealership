@@ -1,3 +1,4 @@
+import { getSalesLedger } from '../controllers/workspace.controller';
 import { Router } from 'express';
 import { authenticate, resolveTenant, requireRole } from '../middleware/auth';
 import {
@@ -21,13 +22,26 @@ router.get('/salesperson', requireRole('salesperson'), getSalespersonWorkspace);
 router.get('/manager', requireRole('manager', 'owner'), getManagerWorkspace);
 
 // 3. Owner Workspace (Owner only)
+router.get('/sales', requireRole('owner'), getSalesLedger);
 router.get('/owner', requireRole('owner'), getOwnerWorkspace);
 
 // 4. Task completion with outcome and stage transition
-router.post('/tasks/:id/complete', requireRole('salesperson', 'manager', 'owner'), completeTaskWithOutcome);
+router.post(
+  '/tasks/:id/complete',
+  requireRole('salesperson', 'manager', 'owner'),
+  completeTaskWithOutcome
+);
 
 // 5. Deal outcome exit actions
-router.post('/leads/:id/sold', requireRole('salesperson', 'manager', 'owner'), markLeadSold);
-router.post('/leads/:id/lost', requireRole('salesperson', 'manager', 'owner'), markLeadLost);
+router.post(
+  '/leads/:id/sold',
+  requireRole('salesperson', 'manager', 'owner'),
+  markLeadSold
+);
+router.post(
+  '/leads/:id/lost',
+  requireRole('salesperson', 'manager', 'owner'),
+  markLeadLost
+);
 
 export default router;

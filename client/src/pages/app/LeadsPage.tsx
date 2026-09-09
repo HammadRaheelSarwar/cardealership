@@ -1,16 +1,29 @@
+import { useAuthStore } from '@/store/authStore';
+import { readList } from '@/services/liveData';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Users, Plus, Search, Filter, ArrowUpDown, ChevronRight,
-  Car, Clock, Phone, Mail, Sparkles, AlertCircle
+  Users,
+  Plus,
+  Search,
+  Filter,
+  ArrowUpDown,
+  ChevronRight,
+  Car,
+  Clock,
+  Phone,
+  Mail,
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 import api from '@/services/api';
 import axios from 'axios';
 
 function normalizeLead(lead: any) {
   const customer = lead.customer || lead.customerId;
-  const assignedUser = lead.assigned_user || lead.assignedUser || lead.assignedUserId;
+  const assignedUser =
+    lead.assigned_user || lead.assignedUser || lead.assignedUserId;
 
   return {
     ...lead,
@@ -39,6 +52,7 @@ function normalizeLead(lead: any) {
 
 export default function LeadsPage() {
   const navigate = useNavigate();
+  const activeDealershipId = useAuthStore((s) => s.activeDealershipId);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStage, setSelectedStage] = useState('all');
@@ -53,7 +67,7 @@ export default function LeadsPage() {
     lastName: '',
     phone: '',
     email: '',
-    vehicle: '2024 Toyota Camry XSE',
+    vehicle: '',
     source: 'Website',
     temperature: 'hot' as 'hot' | 'warm' | 'cold',
     priority: 'high' as 'high' | 'medium' | 'low',
@@ -61,65 +75,25 @@ export default function LeadsPage() {
   });
 
   // Query leads
-  const { data: leadsData, refetch } = useQuery({
-    queryKey: ['leads', selectedStage, selectedTemperature],
+  const {
+    data: leadsData,
+    refetch,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: [
+      activeDealershipId,
+      'leads',
+      selectedStage,
+      selectedTemperature,
+      window.location.search,
+    ],
     queryFn: async () => {
-      try {
-        const res = await api.get('/leads');
-        return Array.isArray(res.data.data) ? res.data.data.map(normalizeLead) : [];
-      } catch {
-        // Fallback demo leads
-        return [
-          {
-            _id: '1',
-            customer: { firstName: 'John', lastName: 'Carter', phone: '+1 (555) 301-4492', email: 'john.carter@gmail.com' },
-            vehicle: { year: 2024, make: 'Toyota', model: 'Camry', trim: 'XSE', price: 34900 },
-            source: { name: 'Website' },
-            stage: { name: 'Follow-Up', color: '#F59E0B' },
-            temperature: 'hot',
-            priority: 'high',
-            assignedUser: { firstName: 'Shane', lastName: 'Miller' },
-            nextFollowUpAt: 'Tomorrow 10 AM',
-            createdAt: 'Today 10:04 AM',
-          },
-          {
-            _id: '2',
-            customer: { firstName: 'Emily', lastName: 'Davis', phone: '+1 (555) 482-9912', email: 'emily.davis@outlook.com' },
-            vehicle: { year: 2023, make: 'BMW', model: '330i', trim: 'M Sport', price: 41500 },
-            source: { name: 'Facebook' },
-            stage: { name: 'Appointment', color: '#0891B2' },
-            temperature: 'hot',
-            priority: 'high',
-            assignedUser: { firstName: 'Sarah', lastName: 'Parker' },
-            nextFollowUpAt: 'Today 2 PM',
-            createdAt: 'Today 9:15 AM',
-          },
-          {
-            _id: '3',
-            customer: { firstName: 'David', lastName: 'Wilson', phone: '+1 (555) 771-3320', email: 'david.wilson@yahoo.com' },
-            vehicle: { year: 2024, make: 'Ford', model: 'F-150', trim: 'XLT', price: 52900 },
-            source: { name: 'Phone' },
-            stage: { name: 'Contacted', color: '#7C3AED' },
-            temperature: 'warm',
-            priority: 'medium',
-            assignedUser: { firstName: 'Michael', lastName: 'Brown' },
-            nextFollowUpAt: 'In 2 days',
-            createdAt: 'Yesterday',
-          },
-          {
-            _id: '4',
-            customer: { firstName: 'Jessica', lastName: 'Anderson', phone: '+1 (555) 604-1294', email: 'jess.anderson@gmail.com' },
-            vehicle: { year: 2024, make: 'Hyundai', model: 'Tucson', trim: 'Limited', price: 36200 },
-            source: { name: 'AutoTrader' },
-            stage: { name: 'New', color: '#2563EB' },
-            temperature: 'cold',
-            priority: 'low',
-            assignedUser: { firstName: 'Sarah', lastName: 'Parker' },
-            nextFollowUpAt: 'Pending call',
-            createdAt: '2 days ago',
-          },
-        ];
-      }
+      const params = new URLSearchParams(window.location.search);
+      const path = params.get('stageId')
+        ? `/leads?stageId=${encodeURIComponent(params.get('stageId')!)}`
+        : '/leads';
+      return (await readList(path)).map(normalizeLead);
     },
   });
 
@@ -142,12 +116,14 @@ export default function LeadsPage() {
       await refetch();
       setIsCreateModalOpen(false);
 
-      const createdLeadId = response.data?.data?.lead?.id || response.data?.data?.lead?._id;
+      const createdLeadId =
+        response.data?.data?.lead?.id || response.data?.data?.lead?._id;
       if (createdLeadId) navigate(`/leads/${createdLeadId}`);
     } catch (error: unknown) {
       setCreateError(
         axios.isAxiosError(error)
-          ? error.response?.data?.message || 'Unable to save the lead. Please try again.'
+          ? error.response?.data?.message ||
+              'Unable to save the lead. Please try again.'
           : 'Unable to save the lead. Please try again.'
       );
     } finally {
@@ -165,12 +141,22 @@ export default function LeadsPage() {
     const s = searchTerm.toLowerCase();
 
     const matchesSearch = name.includes(s) || car.includes(s);
-    const matchesTemp = selectedTemperature === 'all' || l.temperature === selectedTemperature;
-    const matchesStage = selectedStage === 'all' || (l.stage?.name || l.pipelineStageId?.name) === selectedStage;
+    const matchesTemp =
+      selectedTemperature === 'all' || l.temperature === selectedTemperature;
+    const matchesStage =
+      selectedStage === 'all' ||
+      (l.stage?.name || l.pipelineStageId?.name) === selectedStage;
 
     return matchesSearch && matchesTemp && matchesStage;
   });
 
+  if (isError)
+    return (
+      <div role="alert" className="text-red-400 p-6">
+        {error.message}
+        <button onClick={() => refetch()}>Retry</button>
+      </div>
+    );
   return (
     <div className="space-y-4 animate-fade-in max-w-7xl mx-auto">
       {/* ── Header ── */}
@@ -178,7 +164,8 @@ export default function LeadsPage() {
         <div>
           <h1 className="page-title text-2xl font-bold">Dealership Leads</h1>
           <p className="page-subtitle text-xs">
-            Manage inquiries, assign salespeople, and track customer response times.
+            Manage inquiries, assign salespeople, and track customer response
+            times.
           </p>
         </div>
 
@@ -268,7 +255,9 @@ export default function LeadsPage() {
                       <div className="font-bold text-text-primary">
                         {cust.firstName} {cust.lastName}
                       </div>
-                      <div className="text-[11px] text-text-muted">{cust.phone}</div>
+                      <div className="text-[11px] text-text-muted">
+                        {cust.phone}
+                      </div>
                     </td>
 
                     <td className="px-5 py-3.5">
@@ -305,9 +294,15 @@ export default function LeadsPage() {
                     </td>
 
                     <td className="px-5 py-3.5">
-                      {lead.temperature === 'hot' && <span className="badge-hot">🔥 Hot</span>}
-                      {lead.temperature === 'warm' && <span className="badge-warm">⚡ Warm</span>}
-                      {lead.temperature === 'cold' && <span className="badge-cold">❄️ Cold</span>}
+                      {lead.temperature === 'hot' && (
+                        <span className="badge-hot">🔥 Hot</span>
+                      )}
+                      {lead.temperature === 'warm' && (
+                        <span className="badge-warm">⚡ Warm</span>
+                      )}
+                      {lead.temperature === 'cold' && (
+                        <span className="badge-cold">❄️ Cold</span>
+                      )}
                     </td>
 
                     <td className="px-5 py-3.5 text-amber-700 font-medium">
@@ -338,7 +333,9 @@ export default function LeadsPage() {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-modal border border-border-light space-y-4 animate-scale-in">
             <div className="flex items-center justify-between pb-3 border-b border-border-light">
-              <h2 className="text-base font-bold text-text-primary">Capture New Dealership Lead</h2>
+              <h2 className="text-base font-bold text-text-primary">
+                Capture New Dealership Lead
+              </h2>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
                 className="text-xs text-text-muted hover:text-text-primary"
@@ -356,23 +353,31 @@ export default function LeadsPage() {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-text-secondary uppercase mb-1">First Name</label>
+                  <label className="block font-semibold text-text-secondary uppercase mb-1">
+                    First Name
+                  </label>
                   <input
                     type="text"
                     required
                     value={newLead.firstName}
-                    onChange={(e) => setNewLead({ ...newLead, firstName: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, firstName: e.target.value })
+                    }
                     className="crm-input"
                     placeholder="John"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-text-secondary uppercase mb-1">Last Name</label>
+                  <label className="block font-semibold text-text-secondary uppercase mb-1">
+                    Last Name
+                  </label>
                   <input
                     type="text"
                     required
                     value={newLead.lastName}
-                    onChange={(e) => setNewLead({ ...newLead, lastName: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, lastName: e.target.value })
+                    }
                     className="crm-input"
                     placeholder="Doe"
                   />
@@ -381,22 +386,30 @@ export default function LeadsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-text-secondary uppercase mb-1">Phone (SMS)</label>
+                  <label className="block font-semibold text-text-secondary uppercase mb-1">
+                    Phone (SMS)
+                  </label>
                   <input
                     type="tel"
                     required
                     value={newLead.phone}
-                    onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, phone: e.target.value })
+                    }
                     className="crm-input"
                     placeholder="+1 (555) 000-0000"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-text-secondary uppercase mb-1">Email</label>
+                  <label className="block font-semibold text-text-secondary uppercase mb-1">
+                    Email
+                  </label>
                   <input
                     type="email"
                     value={newLead.email}
-                    onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, email: e.target.value })
+                    }
                     className="crm-input"
                     placeholder="customer@email.com"
                   />
@@ -405,10 +418,14 @@ export default function LeadsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-text-secondary uppercase mb-1">Temperature</label>
+                  <label className="block font-semibold text-text-secondary uppercase mb-1">
+                    Temperature
+                  </label>
                   <select
                     value={newLead.temperature}
-                    onChange={(e: any) => setNewLead({ ...newLead, temperature: e.target.value })}
+                    onChange={(e: any) =>
+                      setNewLead({ ...newLead, temperature: e.target.value })
+                    }
                     className="crm-input"
                   >
                     <option value="hot">🔥 Hot Lead</option>
@@ -417,10 +434,14 @@ export default function LeadsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-text-secondary uppercase mb-1">Priority</label>
+                  <label className="block font-semibold text-text-secondary uppercase mb-1">
+                    Priority
+                  </label>
                   <select
                     value={newLead.priority}
-                    onChange={(e: any) => setNewLead({ ...newLead, priority: e.target.value })}
+                    onChange={(e: any) =>
+                      setNewLead({ ...newLead, priority: e.target.value })
+                    }
                     className="crm-input"
                   >
                     <option value="high">High Priority</option>
@@ -431,12 +452,16 @@ export default function LeadsPage() {
               </div>
 
               <div>
-                <label className="block font-semibold text-text-secondary uppercase mb-1">Notes / Inquired Vehicle</label>
+                <label className="block font-semibold text-text-secondary uppercase mb-1">
+                  Notes / Inquired Vehicle
+                </label>
                 <textarea
                   rows={2}
                   value={newLead.notes}
-                  onChange={(e) => setNewLead({ ...newLead, notes: e.target.value })}
-                  placeholder="Customer visited lot looking for 2024 Camry or midsize sedan..."
+                  onChange={(e) =>
+                    setNewLead({ ...newLead, notes: e.target.value })
+                  }
+                  placeholder="Add the customer’s request or relevant notes"
                   className="crm-input resize-none"
                 />
               </div>

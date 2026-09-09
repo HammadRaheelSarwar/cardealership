@@ -2,21 +2,30 @@ import { Request, Response, NextFunction } from 'express';
 import { supabase } from '../config/supabase';
 import { sendSuccess } from '../utils/response';
 
-export async function getLeadSources(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getLeadSources(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
-    const { data: sources } = await supabase
+    const { data: sources, error } = await supabase
       .from('lead_sources')
       .select('*')
       .eq('dealership_id', req.tenant.dealershipId)
       .eq('is_active', true);
 
+    if (error) throw new Error(error.message);
     sendSuccess(res, { data: sources || [] });
   } catch (err) {
     next(err);
   }
 }
 
-export async function createLeadSource(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createLeadSource(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const { name, channel } = req.body;
     const { data: source, error } = await supabase
@@ -31,7 +40,11 @@ export async function createLeadSource(req: Request, res: Response, next: NextFu
       .single();
 
     if (error || !source) throw new Error(error?.message);
-    sendSuccess(res, { statusCode: 201, message: 'Lead source created', data: { source } });
+    sendSuccess(res, {
+      statusCode: 201,
+      message: 'Lead source created',
+      data: { source },
+    });
   } catch (err) {
     next(err);
   }

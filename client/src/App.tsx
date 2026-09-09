@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore, useActiveMembershipRole } from '@/store/authStore';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
 
@@ -17,7 +17,9 @@ import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 
 // Role-Specific Dashboards
-const SalespersonDashboard = lazy(() => import('@/pages/app/SalespersonDashboard'));
+const SalespersonDashboard = lazy(
+  () => import('@/pages/app/SalespersonDashboard')
+);
 const ManagerDashboard = lazy(() => import('@/pages/app/ManagerDashboard'));
 const OwnerDashboard = lazy(() => import('@/pages/app/OwnerDashboard'));
 
@@ -33,21 +35,35 @@ const VehicleDetailPage = lazy(() => import('@/pages/app/VehicleDetailPage'));
 const TasksPage = lazy(() => import('@/pages/app/TasksPage'));
 const AppointmentsPage = lazy(() => import('@/pages/app/AppointmentsPage'));
 const ReportsPage = lazy(() => import('@/pages/app/ReportsPage'));
-const ActivityCoachingPage = lazy(() => import('@/pages/app/ActivityCoachingPage'));
-const ConversionFunnelPage = lazy(() => import('@/pages/app/ConversionFunnelPage'));
+const ActivityCoachingPage = lazy(
+  () => import('@/pages/app/ActivityCoachingPage')
+);
+const ConversionFunnelPage = lazy(
+  () => import('@/pages/app/ConversionFunnelPage')
+);
 const SalesVolumePage = lazy(() => import('@/pages/app/SalesVolumePage'));
-const FinancialReportsPage = lazy(() => import('@/pages/app/FinancialReportsPage'));
-const ManagersComparisonPage = lazy(() => import('@/pages/app/ManagersComparisonPage'));
+const FinancialReportsPage = lazy(
+  () => import('@/pages/app/FinancialReportsPage')
+);
+const ManagersComparisonPage = lazy(
+  () => import('@/pages/app/ManagersComparisonPage')
+);
 const TeamPage = lazy(() => import('@/pages/app/TeamPage'));
 const IntegrationsPage = lazy(() => import('@/pages/app/IntegrationsPage'));
 const SettingsPage = lazy(() => import('@/pages/app/SettingsPage'));
 const AutomationPage = lazy(() => import('@/pages/app/AutomationPage'));
-const AutomationDetailPage = lazy(() => import('@/pages/app/AutomationDetailPage'));
+const AutomationDetailPage = lazy(
+  () => import('@/pages/app/AutomationDetailPage')
+);
 const AIPage = lazy(() => import('@/pages/app/AIPage'));
 
 // Admin & Public pages
-const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage'));
-const AdminDealershipsPage = lazy(() => import('@/pages/admin/AdminDealershipsPage'));
+const AdminDashboardPage = lazy(
+  () => import('@/pages/admin/AdminDashboardPage')
+);
+const AdminDealershipsPage = lazy(
+  () => import('@/pages/admin/AdminDealershipsPage')
+);
 const LandingPage = lazy(() => import('@/pages/public/LandingPage'));
 
 // ─── Guards ───────────────────────────────────────────────────────────────────
@@ -59,10 +75,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
   const { isAuthenticated } = useAuthStore();
   const role = useActiveMembershipRole();
 
   if (isAuthenticated) {
+    if (!role)
+      return location.pathname === '/register' ? (
+        <>{children}</>
+      ) : (
+        <Navigate to="/register" replace />
+      );
     if (role === 'salesperson') return <Navigate to="/my-pipeline" replace />;
     if (role === 'manager') return <Navigate to="/team-pipeline" replace />;
     return <Navigate to="/owner-overview" replace />;
@@ -78,7 +101,8 @@ function RoleGuard({
   children: React.ReactNode;
 }) {
   const { isAuthenticated } = useAuthStore();
-  const role = useActiveMembershipRole() as 'salesperson' | 'manager' | 'owner' | null;
+  const role = useActiveMembershipRole() as
+    'salesperson' | 'manager' | 'owner' | null;
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (role && !allowedRoles.includes(role)) {
@@ -114,7 +138,13 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
 
         {/* ── Auth ── */}
-        <Route element={<PublicOnlyRoute><PublicLayout /></PublicOnlyRoute>}>
+        <Route
+          element={
+            <PublicOnlyRoute>
+              <PublicLayout />
+            </PublicOnlyRoute>
+          }
+        >
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

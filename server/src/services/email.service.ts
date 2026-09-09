@@ -1,5 +1,6 @@
+import { Resend } from 'resend';
+import { env } from '../config/env';
 import { supabase } from '../config/supabase';
-import { logger } from '../utils/logger';
 
 export interface SendEmailOptions {
   dealershipId: string;
@@ -15,7 +16,16 @@ export interface SendEmailOptions {
 
 export class EmailService {
   async sendEmail(options: SendEmailOptions) {
-    const { dealershipId, customerId, leadId, senderUserId, toEmail, subject, body, attachments } = options;
+    const {
+      dealershipId,
+      customerId,
+      leadId,
+      senderUserId,
+      toEmail,
+      subject,
+      body,
+      attachments,
+    } = options;
 
     const { data: customer } = await supabase
       .from('customers')
@@ -25,12 +35,20 @@ export class EmailService {
       .single();
 
     if (!customer) throw new Error('Customer not found for this dealership');
-    if (customer.do_not_contact) throw new Error('Customer has opted out (Do Not Contact). Email blocked.');
-    if (customer.email_consent === false) throw new Error('Customer has not provided email consent. Email blocked.');
+    if (customer.do_not_contact)
+      throw new Error(
+        'Customer has opted out (Do Not Contact). Email blocked.'
+      );
+    if (customer.email_consent === false)
+      throw new Error(
+        'Customer has not provided email consent. Email blocked.'
+      );
 
-    const fromEmail = options.fromEmail || 'sales@premierautogroup.com';
-    const providerId = `EM_SIM_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    logger.info(`[Email Service] Simulated Email sent from ${fromEmail} to ${toEmail}: "${subject}" [ID: ${providerId}]`);
+    if (!env.RESEND_API_KEY || !env.EMAIL_FROM_ADDRESS)
+      throw new Error(
+        'Email provider is not configured. Configure Resend and a verified sender address.'
+      );
+    const fromEmail = env.EMAIL_FROM_ADDRESS;
 
     let { data: conv } = await supabase
       .from('conversations')
@@ -80,16 +98,54 @@ export class EmailService {
         subject,
         content: body,
         attachments: attachments || [],
-        status: 'sent',
+        status: 'queued',
         provider: 'resend',
-        provider_message_id: providerId,
+
         sent_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (error) throw new Error(error.message);
-    return message;
+    try {
+      const sent = await new Resend(env.RESEND_API_KEY).emails.send({
+        from: fromEmail,
+        to: [toEmail],
+        subject,
+        text: body,
+        ...(attachments?.length
+          ? {
+              attachments: attachments.map((a) => ({
+                filename: a.name,
+                path: a.url,
+              })),
+            }
+          : {}),
+      });
+      if (sent.error || !sent.data)
+        throw new Error(
+          sent.error?.message || 'Email provider rejected the message'
+        );
+      const result = await supabase
+        .from('messages')
+        .update({ provider_message_id: sent.data.id, status: 'sent' })
+        .eq('id', message.id)
+        .eq('dealership_id', dealershipId)
+        .select()
+        .single();
+      if (result.error)
+        throw new Error(
+          'Email submitted to provider, but delivery status could not be saved. Check the message before retrying.'
+        );
+      return result.data;
+    } catch (error) {
+      await supabase
+        .from('messages')
+        .update({ status: 'failed' })
+        .eq('id', message.id)
+        .eq('dealership_id', dealershipId);
+      throw error;
+    }
   }
 }
 

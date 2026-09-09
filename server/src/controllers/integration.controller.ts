@@ -8,10 +8,16 @@ export async function getIntegrationStatus(
   next: NextFunction
 ): Promise<void> {
   try {
-    const smsConfigured = Boolean(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN);
-    const emailConfigured = Boolean(env.RESEND_API_KEY);
+    const smsConfigured = Boolean(
+      env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER
+    );
+    const emailConfigured = Boolean(
+      env.RESEND_API_KEY && env.EMAIL_FROM_ADDRESS
+    );
     const aiConfigured = Boolean(env.OPENAI_API_KEY);
-    const storageConfigured = Boolean(env.SUPABASE_URL);
+    const storageConfigured = Boolean(
+      env.SUPABASE_URL && !env.SUPABASE_URL.includes('example.supabase')
+    );
 
     sendSuccess(res, {
       data: {

@@ -18,16 +18,20 @@ export const supabase: SupabaseClient = createClient(
  * Creates a scoped Supabase client with the caller's JWT token for RLS verification
  */
 export function createScopedClient(accessToken: string): SupabaseClient {
-  return createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+  return createClient(
+    env.SUPABASE_URL,
+    env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    },
-    auth: {
-      persistSession: false,
-    },
-  });
+      auth: {
+        persistSession: false,
+      },
+    }
+  );
 }
 
 export async function checkSupabaseConnection(): Promise<boolean> {
@@ -43,4 +47,12 @@ export async function checkSupabaseConnection(): Promise<boolean> {
     logger.error('❌ Failed to connect to Supabase PostgreSQL:', err);
     return false;
   }
+}
+
+export function createAuthClient() {
+  return createClient(
+    env.SUPABASE_URL,
+    env.SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
 }

@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Sparkles, Send, ShieldCheck, Car, ChevronRight
-} from 'lucide-react';
+import { Sparkles, Send, ShieldCheck, Car, ChevronRight } from 'lucide-react';
 import api from '@/services/api';
 
 interface ChatMessage {
@@ -59,17 +57,22 @@ export default function AIPage() {
       const aiReply: ChatMessage = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: aiData.answer || 'Analyzed pipeline intelligence for your dealership.',
+        text:
+          aiData.answer ||
+          'Analyzed pipeline intelligence for your dealership.',
       };
 
       setMessages((prev) => [...prev, aiReply]);
-    } catch (err) {
+    } catch (err: any) {
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
           sender: 'ai',
-          text: 'AI provider is processing pipeline insights. Currently running in rule-based intelligence mode.',
+          text:
+            err.response?.data?.message ||
+            err.message ||
+            'Unable to contact the AI provider.',
         },
       ]);
     } finally {
@@ -86,8 +89,12 @@ export default function AIPage() {
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="font-bold text-sm text-text-primary">AI Dealership Command Center</h1>
-            <p className="text-[11px] text-text-muted">Natural language CRM intelligence & sales copilot</p>
+            <h1 className="font-bold text-sm text-text-primary">
+              AI Dealership Command Center
+            </h1>
+            <p className="text-[11px] text-text-muted">
+              Natural language CRM intelligence & sales copilot
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-1 text-[11px] text-success font-semibold">
@@ -98,7 +105,9 @@ export default function AIPage() {
 
       {/* Quick Prompts Bar */}
       <div className="p-3 bg-white border-b border-border-light flex items-center gap-2 overflow-x-auto text-xs shrink-0">
-        <span className="text-[10px] uppercase font-bold text-text-muted whitespace-nowrap">Suggested:</span>
+        <span className="text-[10px] uppercase font-bold text-text-muted whitespace-nowrap">
+          Suggested:
+        </span>
         {quickPrompts.map((p) => (
           <button
             key={p}
@@ -123,7 +132,9 @@ export default function AIPage() {
               </div>
             )}
 
-            <div className={`space-y-3 max-w-[85%] ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
+            <div
+              className={`space-y-3 max-w-[85%] ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
+            >
               <div
                 className={`p-3.5 rounded-xl ${
                   m.sender === 'user'
@@ -145,7 +156,13 @@ export default function AIPage() {
       </div>
 
       {/* Input */}
-      <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="p-3 border-t border-border-light bg-white flex gap-2">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSend();
+        }}
+        className="p-3 border-t border-border-light bg-white flex gap-2"
+      >
         <input
           type="text"
           value={inputQuery}

@@ -3,17 +3,37 @@ import { supabase } from '../config/supabase';
 import { sendSuccess } from '../utils/response';
 
 export class AdminController {
-  static async getPlatformStats(_req: Request, res: Response, next: NextFunction) {
+  static async getPlatformStats(
+    _req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
-      const [totalDealerships, activeDealerships, totalUsers, totalLeads, totalMessages] =
-        await Promise.all([
-          supabase.from('dealerships').select('id', { count: 'exact' }),
-          supabase.from('dealerships').select('id', { count: 'exact' }).eq('status', 'active'),
-          supabase.from('profiles').select('id', { count: 'exact' }),
-          supabase.from('leads').select('id', { count: 'exact' }),
-          supabase.from('messages').select('id', { count: 'exact' }),
-        ]);
+      const [
+        totalDealerships,
+        activeDealerships,
+        totalUsers,
+        totalLeads,
+        totalMessages,
+      ] = await Promise.all([
+        supabase.from('dealerships').select('id', { count: 'exact' }),
+        supabase
+          .from('dealerships')
+          .select('id', { count: 'exact' })
+          .eq('status', 'active'),
+        supabase.from('profiles').select('id', { count: 'exact' }),
+        supabase.from('leads').select('id', { count: 'exact' }),
+        supabase.from('messages').select('id', { count: 'exact' }),
+      ]);
 
+      for (const result of [
+        totalDealerships,
+        activeDealerships,
+        totalUsers,
+        totalLeads,
+        totalMessages,
+      ])
+        if (result.error) throw new Error(result.error.message);
       sendSuccess(res, {
         data: {
           totalDealerships: totalDealerships.count || 0,
@@ -21,7 +41,15 @@ export class AdminController {
           totalUsers: totalUsers.count || 0,
           totalLeads: totalLeads.count || 0,
           totalMessages: totalMessages.count || 0,
-          systemStatus: 'healthy',
+          systemStatus: [
+            totalDealerships,
+            activeDealerships,
+            totalUsers,
+            totalLeads,
+            totalMessages,
+          ].some((r) => r.error)
+            ? 'unavailable'
+            : 'database_connected',
         },
       });
     } catch (err) {
@@ -29,7 +57,11 @@ export class AdminController {
     }
   }
 
-  static async getDealerships(_req: Request, res: Response, next: NextFunction) {
+  static async getDealerships(
+    _req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const { data: dealerships, error } = await supabase
         .from('dealerships')
@@ -43,7 +75,11 @@ export class AdminController {
     }
   }
 
-  static async toggleDealershipStatus(req: Request, res: Response, next: NextFunction) {
+  static async toggleDealershipStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -56,11 +92,16 @@ export class AdminController {
         .single();
 
       if (error || !dealership) {
-        res.status(404).json({ success: false, message: 'Dealership not found' });
+        res
+          .status(404)
+          .json({ success: false, message: 'Dealership not found' });
         return;
       }
 
-      sendSuccess(res, { message: `Dealership status updated to ${status}`, data: { dealership } });
+      sendSuccess(res, {
+        message: `Dealership status updated to ${status}`,
+        data: { dealership },
+      });
     } catch (err) {
       next(err);
     }

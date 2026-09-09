@@ -31,7 +31,7 @@ export function TopHeader() {
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-[#A0A0A0] hover:text-white transition-colors cursor-pointer">
           <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
           <span className="font-medium text-white truncate max-w-[130px]">
-            {membership?.dealershipId?.name || 'Premier Auto Group'}
+            {membership?.dealershipId?.name || 'Dealership'}
           </span>
           <ChevronDown className="w-3 h-3 text-[#6E6E6E]" />
         </div>
@@ -54,7 +54,6 @@ export function TopHeader() {
           title="Notifications"
         >
           <Bell className="w-4 h-4" />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
         </button>
 
         {/* Compact + New Lead Button (The single primary action on header) */}

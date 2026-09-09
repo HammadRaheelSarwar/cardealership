@@ -33,7 +33,10 @@ app.use(
 
 app.use(
   cors({
-    origin: [env.CLIENT_URL, ...(env.NODE_ENV === 'development' ? ['http://localhost:5173'] : [])],
+    origin: [
+      env.CLIENT_URL,
+      ...(env.NODE_ENV === 'development' ? ['http://localhost:5173'] : []),
+    ],
     credentials: true, // Required for httpOnly refresh token cookies
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -51,13 +54,19 @@ const globalLimiter = rateLimit({
   max: 500,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, message: 'Too many requests, please try again later.' },
+  message: {
+    success: false,
+    message: 'Too many requests, please try again later.',
+  },
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  message: { success: false, message: 'Too many auth attempts, please try again later.' },
+  message: {
+    success: false,
+    message: 'Too many auth attempts, please try again later.',
+  },
 });
 
 app.use(globalLimiter);
@@ -133,6 +142,8 @@ async function start(): Promise<void> {
   });
 }
 
-start();
+if (require.main === module) {
+  start();
+}
 
 export { app, getIO };

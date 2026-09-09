@@ -1,7 +1,17 @@
+import { useLiveQuery } from '@/hooks/useLiveQuery';
+import { readData } from '@/services/liveData';
 import React, { useEffect, useState } from 'react';
 import {
-  MessageSquare, Mail, Calendar, Globe, Share2,
-  Database, CheckCircle2, ArrowRight, ShieldCheck, Zap
+  MessageSquare,
+  Mail,
+  Calendar,
+  Globe,
+  Share2,
+  Database,
+  CheckCircle2,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import api from '@/services/api';
 import { PageSkeleton } from '@/components/common/PageSkeleton';
@@ -14,32 +24,25 @@ interface IntegrationStatus {
 }
 
 export default function IntegrationsPage() {
-  const [status, setStatus] = useState<IntegrationStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchStatus() {
-      try {
-        setLoading(true);
-        const res = await api.get('/integrations/status');
-        setStatus(res.data.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchStatus();
-  }, []);
-
-  if (loading) return <PageSkeleton />;
+  const query = useLiveQuery(['integrations'], () =>
+    readData('/integrations/status')
+  );
+  const status = query.data;
+  if (query.isPending) return <PageSkeleton />;
+  if (query.isError)
+    return (
+      <p role="alert" className="text-red-400">
+        {query.error.message}
+      </p>
+    );
 
   const integrations = [
     {
       id: 'twilio',
       name: 'Twilio SMS & MMS',
       category: 'Communication',
-      description: 'Two-way SMS text messaging with dedicated dealership phone number and real-time delivery webhooks.',
+      description:
+        'Two-way SMS text messaging with dedicated dealership phone number and real-time delivery webhooks.',
       configured: status?.sms.configured ?? false,
       icon: MessageSquare,
     },
@@ -47,7 +50,8 @@ export default function IntegrationsPage() {
       id: 'email',
       name: 'Automotive Inbound & Outbound Email',
       category: 'Communication',
-      description: 'Direct email sync with full RFC threading, attachments, bounce detection, and unsubscribe suppression.',
+      description:
+        'Direct email sync with full RFC threading, attachments, bounce detection, and unsubscribe suppression.',
       configured: status?.email.configured ?? false,
       icon: Mail,
     },
@@ -55,7 +59,8 @@ export default function IntegrationsPage() {
       id: 'ai',
       name: 'OpenAI Sales Assistant',
       category: 'AI Intelligence',
-      description: 'Automated suggested responses, conversation summary, and intent recognition.',
+      description:
+        'Automated suggested responses, conversation summary, and intent recognition.',
       configured: status?.ai.configured ?? false,
       icon: Zap,
     },
@@ -64,7 +69,7 @@ export default function IntegrationsPage() {
       name: 'Supabase Vehicle Media Storage',
       category: 'Storage',
       description: 'High-speed lot inventory photo uploads and CDN delivery.',
-      configured: status?.storage.configured ?? true,
+      configured: status?.storage.configured ?? false,
       icon: Database,
     },
   ];
@@ -74,9 +79,12 @@ export default function IntegrationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="page-title text-2xl font-bold">Integration Marketplace</h1>
+          <h1 className="page-title text-2xl font-bold">
+            Integration Marketplace
+          </h1>
           <p className="page-subtitle text-xs">
-            Connect SMS carriers, email routing, marketing lead sources, and DMS inventory providers.
+            Connect SMS carriers, email routing, marketing lead sources, and DMS
+            inventory providers.
           </p>
         </div>
 
@@ -106,12 +114,16 @@ export default function IntegrationsPage() {
                       <span>Connected</span>
                     </span>
                   ) : (
-                    <span className="badge-neutral text-[10px] font-medium">Not Configured</span>
+                    <span className="badge-neutral text-[10px] font-medium">
+                      Not Configured
+                    </span>
                   )}
                 </div>
 
                 <div>
-                  <h3 className="font-bold text-sm text-text-primary">{item.name}</h3>
+                  <h3 className="font-bold text-sm text-text-primary">
+                    {item.name}
+                  </h3>
                   <span className="text-[10px] uppercase font-semibold text-text-muted">
                     {item.category}
                   </span>

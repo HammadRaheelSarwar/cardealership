@@ -6,7 +6,10 @@ import api from '@/services/api';
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') || '';
+  const token =
+    searchParams.get('token') ||
+    new URLSearchParams(window.location.hash.slice(1)).get('access_token') ||
+    '';
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -29,7 +32,10 @@ export default function ResetPasswordPage() {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to reset password. Link may be expired.');
+      setError(
+        err.response?.data?.message ||
+          'Failed to reset password. Link may be expired.'
+      );
     } finally {
       setLoading(false);
     }
@@ -39,7 +45,9 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-bg-secondary flex flex-col justify-center py-12 sm:px-6 lg:px-8 animate-fade-in">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold text-text-primary tracking-tight">Set new password</h2>
+          <h2 className="text-3xl font-extrabold text-text-primary tracking-tight">
+            Set new password
+          </h2>
           <p className="mt-2 text-xs text-text-secondary">
             Enter your new password below to secure your account.
           </p>
@@ -53,8 +61,12 @@ export default function ResetPasswordPage() {
               <div className="w-12 h-12 rounded-full bg-green-50 text-success mx-auto flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-base text-text-primary">Password Reset Complete</h3>
-              <p className="text-xs text-text-secondary">Redirecting to login page...</p>
+              <h3 className="font-bold text-base text-text-primary">
+                Password Reset Complete
+              </h3>
+              <p className="text-xs text-text-secondary">
+                Redirecting to login page...
+              </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -81,7 +93,9 @@ export default function ResetPasswordPage() {
               </div>
 
               <div>
-                <label className="crm-label text-xs">Confirm New Password</label>
+                <label className="crm-label text-xs">
+                  Confirm New Password
+                </label>
                 <div className="relative mt-1">
                   <Lock className="w-4 h-4 text-text-muted absolute left-3 top-2.5" />
                   <input

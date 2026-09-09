@@ -1,7 +1,16 @@
+import api from '@/services/api';
+import { useActiveDealership } from '@/store/authStore';
 import React from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
-  GitMerge, CheckSquare, Inbox, Calendar, Search, LogOut, Car, Sparkles
+  GitMerge,
+  CheckSquare,
+  Inbox,
+  Calendar,
+  Search,
+  LogOut,
+  Car,
+  Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils/cn';
@@ -16,9 +25,15 @@ const SALES_NAV = [
 export function SalesWorkspaceLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const dealership = useActiveDealership();
   const location = useLocation();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      /* Clear local session even when disconnected. */
+    }
     logout();
     navigate('/login');
   };
@@ -33,8 +48,12 @@ export function SalesWorkspaceLayout() {
             <Car className="w-3.5 h-3.5 text-[#D4AF37]" />
           </div>
           <div className="overflow-hidden flex-1">
-            <p className="text-xs font-semibold text-white truncate leading-none">Premier Auto Group</p>
-            <p className="text-[10px] text-[#D4AF37] font-medium mt-1 truncate">Sales Workspace</p>
+            <p className="text-xs font-semibold text-white truncate leading-none">
+              {dealership?.dealershipId.name || 'Dealership'}
+            </p>
+            <p className="text-[10px] text-[#D4AF37] font-medium mt-1 truncate">
+              Sales Workspace
+            </p>
           </div>
         </div>
 
@@ -134,10 +153,14 @@ export function SalesWorkspaceLayout() {
                 to={item.to}
                 className={cn(
                   'flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-lg text-[10px] font-medium transition-colors',
-                  isActive ? 'text-[#E6C85C]' : 'text-[#777777] hover:text-white'
+                  isActive
+                    ? 'text-[#E6C85C]'
+                    : 'text-[#777777] hover:text-white'
                 )}
               >
-                <item.icon className={cn('w-4 h-4', isActive && 'text-[#D4AF37]')} />
+                <item.icon
+                  className={cn('w-4 h-4', isActive && 'text-[#D4AF37]')}
+                />
                 <span>{item.label.replace('My ', '')}</span>
               </NavLink>
             );

@@ -1,14 +1,33 @@
+import { useLiveQuery } from '@/hooks/useLiveQuery';
+import { fetchOwnerWorkspace } from '@/services/workspaceService';
+import { money } from '@/components/common/LiveData';
+import api from '@/services/api';
+import { useActiveDealership } from '@/store/authStore';
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Users2, DollarSign, TrendingUp, BarChart3,
-  Wallet, UserCog, Puzzle, Settings, LogOut, Car, Shield
+  LayoutDashboard,
+  Users2,
+  DollarSign,
+  TrendingUp,
+  BarChart3,
+  Wallet,
+  UserCog,
+  Puzzle,
+  Settings,
+  LogOut,
+  Car,
+  Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils/cn';
 
 const OWNER_OVERVIEW_NAV = [
-  { label: 'Dealership Performance', icon: LayoutDashboard, to: '/owner-overview' },
+  {
+    label: 'Dealership Performance',
+    icon: LayoutDashboard,
+    to: '/owner-overview',
+  },
   { label: 'Managers / Teams', icon: Users2, to: '/managers' },
   { label: 'Sales Volume', icon: DollarSign, to: '/sales' },
   { label: 'Conversion Funnel', icon: TrendingUp, to: '/conversion' },
@@ -28,8 +47,17 @@ const OWNER_ADMIN_NAV = [
 export function OwnerWorkspaceLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const dealership = useActiveDealership();
+  const overview = useLiveQuery(['workspace', 'owner', 'mtd'], () =>
+    fetchOwnerWorkspace('mtd')
+  );
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      /* Clear local session even when disconnected. */
+    }
     logout();
     navigate('/login');
   };
@@ -44,8 +72,12 @@ export function OwnerWorkspaceLayout() {
             <Shield className="w-3.5 h-3.5 text-[#D4AF37]" />
           </div>
           <div className="overflow-hidden flex-1">
-            <p className="text-xs font-semibold text-white truncate leading-none">Premier Automotive</p>
-            <p className="text-[10px] text-[#D4AF37] font-semibold mt-1 truncate">Executive Portal</p>
+            <p className="text-xs font-semibold text-white truncate leading-none">
+              {dealership?.dealershipId.name || 'Dealership'}
+            </p>
+            <p className="text-[10px] text-[#D4AF37] font-semibold mt-1 truncate">
+              Executive Portal
+            </p>
           </div>
         </div>
 
@@ -146,7 +178,9 @@ export function OwnerWorkspaceLayout() {
         {/* Owner Header */}
         <header className="h-[52px] border-b border-[rgba(255,255,255,0.06)] bg-[#070707] flex items-center px-4 sm:px-6 gap-3 shrink-0 z-20">
           <div>
-            <h2 className="text-xs font-semibold text-white">Dealer Principal Overview</h2>
+            <h2 className="text-xs font-semibold text-white">
+              Dealer Principal Overview
+            </h2>
             <p className="text-[10px] text-[#6E6E6E]">Enterprise Operations</p>
           </div>
 
@@ -154,10 +188,14 @@ export function OwnerWorkspaceLayout() {
             {/* Executive KPI Ticker */}
             <div className="hidden lg:flex items-center gap-3 bg-[#111111] border border-white/[0.06] px-3 py-1 rounded-md text-xs">
               <span className="text-[#8C8C8C]">MTD Volume:</span>
-              <span className="font-mono font-semibold text-[#E6C85C]">$1,420,000</span>
+              <span className="font-mono font-semibold text-[#E6C85C]">
+                {overview.data ? money(overview.data.salesVolume) : '—'}
+              </span>
               <span className="text-white/20">|</span>
               <span className="text-[#8C8C8C]">Units Sold:</span>
-              <span className="font-mono font-semibold text-white">23</span>
+              <span className="font-mono font-semibold text-white">
+                {overview.data?.unitsSold ?? '—'}
+              </span>
             </div>
 
             <div className="w-[1px] h-4 bg-white/10 hidden sm:block" />
@@ -171,7 +209,9 @@ export function OwnerWorkspaceLayout() {
                 <p className="text-xs font-semibold text-white leading-none">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="text-[10px] text-[#D4AF37] mt-0.5">Dealer Principal</p>
+                <p className="text-[10px] text-[#D4AF37] mt-0.5">
+                  Dealer Principal
+                </p>
               </div>
             </div>
           </div>

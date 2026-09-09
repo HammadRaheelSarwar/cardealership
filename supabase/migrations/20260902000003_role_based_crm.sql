@@ -77,23 +77,3 @@ CREATE POLICY "Tenant Sales Records Policy"
 ON public.sales_records FOR ALL 
 USING (public.is_dealership_member(dealership_id));
 
--- 8. Seed/Update Core Default Pipeline Stages
--- Ensure the standard 6 stages exist for demo dealership
-DO $$
-DECLARE
-  v_dealership_id UUID := 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
-BEGIN
-  IF EXISTS (SELECT 1 FROM public.dealerships WHERE id = v_dealership_id) THEN
-    -- Upsert or insert standard stages
-    INSERT INTO public.pipeline_stages (dealership_id, name, slug, color, sort_order, type, is_system)
-    VALUES
-      (v_dealership_id, 'New Lead', 'new-lead', '#3B82F6', 0, 'standard', false),
-      (v_dealership_id, 'Contacted', 'contacted', '#8B5CF6', 1, 'standard', false),
-      (v_dealership_id, 'Appointment Set', 'appointment-set', '#06B6D4', 2, 'standard', false),
-      (v_dealership_id, 'Show / Test Drive', 'show-test-drive', '#D4AF37', 3, 'standard', false),
-      (v_dealership_id, 'Working Deal', 'working-deal', '#F97316', 4, 'standard', false),
-      (v_dealership_id, 'Sold', 'sold', '#22C55E', 5, 'won', true),
-      (v_dealership_id, 'Lost', 'lost', '#DC2626', 6, 'lost', true)
-    ON CONFLICT DO NOTHING;
-  END IF;
-END $$;

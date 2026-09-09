@@ -1,55 +1,53 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { get, getState } = vi.hoisted(() => ({ get: vi.fn(), getState: vi.fn() }));
-vi.mock('./api', () => ({ default: { get } }));
-vi.mock('@/store/authStore', () => ({ useAuthStore: { getState } }));
-
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+vi.mock('./api', () => ({ default: { get, post } }));
 beforeEach(() => {
   vi.resetModules();
   vi.resetAllMocks();
-  vi.stubEnv('DEV', false);
-  vi.stubEnv('VITE_DEMO_MODE', 'false');
-  getState.mockReturnValue({ accessToken: 'real-token', activeDealershipId: 'real-dealership' });
 });
-
-describe('workspace loading on static production hosts', () => {
-  it('loads every explicit demo workspace without calling the backend', async () => {
-    getState.mockReturnValue({ accessToken: 'demo-access-token', activeDealershipId: 'demo-dealership-1' });
-    const service = await import('./workspaceService');
-    expect((await service.fetchOwnerWorkspace('7d')).dateRange).toBe('7d');
-    expect((await service.fetchManagerWorkspace('30d')).dateRange).toBe('30d');
-    expect((await service.fetchSalespersonWorkspace()).salespersonName).toBeTruthy();
-    expect(get).not.toHaveBeenCalled();
-  });
-
-  it('returns a valid backend workspace for real sessions', async () => {
-    const workspace = { dealershipName: 'Real Dealership', managerComparisons: [] };
-    get.mockResolvedValue({ data: { success: true, data: workspace } });
-    const { fetchOwnerWorkspace } = await import('./workspaceService');
-    expect(await fetchOwnerWorkspace('today')).toEqual(workspace);
-    expect(get).toHaveBeenCalledWith('/workspace/owner?range=today');
-  });
-
-  it.each(['<!doctype html><html></html>', { success: true }, { success: true, data: null }])(
-    'rejects invalid successful HTTP responses instead of returning undefined: %j', async (body) => {
-      get.mockResolvedValue({ data: body });
-      const service = await import('./workspaceService');
-      for (const fetch of [service.fetchOwnerWorkspace, service.fetchManagerWorkspace, service.fetchSalespersonWorkspace]) {
-        await expect(fetch()).rejects.toThrow('backend connection');
-      }
+afterEach(() => vi.unstubAllEnvs());
+describe('real workspace services', () => {
+  it.each([true, false])(
+    'never substitutes sample data, including development mode %s',
+    async (dev) => {
+      vi.stubEnv('DEV', dev);
+      vi.stubEnv('VITE_DEMO_MODE', 'true');
+      get.mockRejectedValue(new Error('Database unavailable'));
+      const s = await import('./workspaceService');
+      for (const fetch of [
+        s.fetchOwnerWorkspace,
+        s.fetchManagerWorkspace,
+        s.fetchSalespersonWorkspace,
+      ])
+        await expect(fetch()).rejects.toThrow('Database unavailable');
     }
   );
-
-  it('preserves backend failures for real production sessions', async () => {
-    get.mockRejectedValue(new Error('Service unavailable'));
-    const { fetchOwnerWorkspace } = await import('./workspaceService');
-    await expect(fetchOwnerWorkspace()).rejects.toThrow('Service unavailable');
+  it.each([
+    '<!doctype html>',
+    { success: true },
+    { success: true, data: null },
+  ])('rejects invalid response %j', async (data) => {
+    get.mockResolvedValue({ data });
+    const s = await import('./workspaceService');
+    await expect(s.fetchOwnerWorkspace()).rejects.toThrow('backend connection');
   });
-
-  it('does not treat a real token with a stale demo dealership as a demo session', async () => {
-    getState.mockReturnValue({ accessToken: 'real-token', activeDealershipId: 'demo-dealership-1' });
-    get.mockRejectedValue(new Error('Unauthorized'));
-    const { fetchOwnerWorkspace } = await import('./workspaceService');
-    await expect(fetchOwnerWorkspace()).rejects.toThrow('Unauthorized');
+  it('preserves zero and empty real results and passes the selected period', async () => {
+    const workspace = { unitsSold: 0, salesVolume: 0, managerComparisons: [] };
+    get.mockResolvedValue({ data: { success: true, data: workspace } });
+    const s = await import('./workspaceService');
+    expect(await s.fetchOwnerWorkspace('7d')).toEqual(workspace);
+    expect(get).toHaveBeenCalledWith('/workspace/owner', {
+      params: { range: '7d' },
+    });
+  });
+  it('does not report failed writes as successful', async () => {
+    post.mockRejectedValue(new Error('Write failed'));
+    const s = await import('./workspaceService');
+    await expect(s.markLeadSold('lead', { saleValue: 100 })).rejects.toThrow(
+      'Write failed'
+    );
+    await expect(
+      s.completeTask('task', { outcome: 'no_answer' })
+    ).rejects.toThrow('Write failed');
   });
 });

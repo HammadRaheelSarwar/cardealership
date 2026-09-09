@@ -5,6 +5,11 @@ import {
 } from '@crm/shared';
 
 describe('Role-Based CRM Architecture & Workflows', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 8, 9, 12));
+  });
+  afterEach(() => jest.useRealTimers());
   describe('1. Task Zero Logic & Scope', () => {
     it('calculates Task Zero scope correctly: due today + overdue only', () => {
       const now = new Date();
@@ -33,12 +38,15 @@ describe('Role-Based CRM Architecture & Workflows', () => {
   describe('2. Deterministic Stage Transition Rules', () => {
     const orderMap: Record<string, string> = {
       'new-lead': 'contacted',
-      'contacted': 'appointment-set',
+      contacted: 'appointment-set',
       'appointment-set': 'show-test-drive',
       'show-test-drive': 'working-deal',
     };
 
-    function evaluateNextStage(currentSlug: string, outcome: TaskOutcome): string | null {
+    function evaluateNextStage(
+      currentSlug: string,
+      outcome: TaskOutcome
+    ): string | null {
       if (outcome === 'appointment_set') {
         return 'appointment-set';
       }
@@ -55,15 +63,27 @@ describe('Role-Based CRM Architecture & Workflows', () => {
     }
 
     it('advances to appointment-set when appointment is booked', () => {
-      expect(evaluateNextStage('contacted', 'appointment_set')).toBe('appointment-set');
-      expect(evaluateNextStage('new-lead', 'appointment_set')).toBe('appointment-set');
+      expect(evaluateNextStage('contacted', 'appointment_set')).toBe(
+        'appointment-set'
+      );
+      expect(evaluateNextStage('new-lead', 'appointment_set')).toBe(
+        'appointment-set'
+      );
     });
 
     it('advances exactly one stage forward on moved_to_next_stage', () => {
-      expect(evaluateNextStage('new-lead', 'moved_to_next_stage')).toBe('contacted');
-      expect(evaluateNextStage('contacted', 'moved_to_next_stage')).toBe('appointment-set');
-      expect(evaluateNextStage('appointment-set', 'moved_to_next_stage')).toBe('show-test-drive');
-      expect(evaluateNextStage('show-test-drive', 'moved_to_next_stage')).toBe('working-deal');
+      expect(evaluateNextStage('new-lead', 'moved_to_next_stage')).toBe(
+        'contacted'
+      );
+      expect(evaluateNextStage('contacted', 'moved_to_next_stage')).toBe(
+        'appointment-set'
+      );
+      expect(evaluateNextStage('appointment-set', 'moved_to_next_stage')).toBe(
+        'show-test-drive'
+      );
+      expect(evaluateNextStage('show-test-drive', 'moved_to_next_stage')).toBe(
+        'working-deal'
+      );
     });
 
     it('does NOT advance stage on no_answer or follow_up_needed', () => {
@@ -73,7 +93,9 @@ describe('Role-Based CRM Architecture & Workflows', () => {
 
     it('transitions to lost on not_interested or purchased_elsewhere', () => {
       expect(evaluateNextStage('contacted', 'not_interested')).toBe('lost');
-      expect(evaluateNextStage('show-test-drive', 'purchased_elsewhere')).toBe('lost');
+      expect(evaluateNextStage('show-test-drive', 'purchased_elsewhere')).toBe(
+        'lost'
+      );
     });
   });
 
@@ -89,13 +111,19 @@ describe('Role-Based CRM Architecture & Workflows', () => {
     }
 
     it('prohibits salesperson from accessing manager and owner workspaces', () => {
-      expect(canAccess('salesperson', rolesAllowed.salespersonWorkspace)).toBe(true);
-      expect(canAccess('salesperson', rolesAllowed.managerWorkspace)).toBe(false);
+      expect(canAccess('salesperson', rolesAllowed.salespersonWorkspace)).toBe(
+        true
+      );
+      expect(canAccess('salesperson', rolesAllowed.managerWorkspace)).toBe(
+        false
+      );
       expect(canAccess('salesperson', rolesAllowed.ownerWorkspace)).toBe(false);
     });
 
     it('allows manager to access manager workspace but not owner workspace', () => {
-      expect(canAccess('manager', rolesAllowed.salespersonWorkspace)).toBe(false);
+      expect(canAccess('manager', rolesAllowed.salespersonWorkspace)).toBe(
+        false
+      );
       expect(canAccess('manager', rolesAllowed.managerWorkspace)).toBe(true);
       expect(canAccess('manager', rolesAllowed.ownerWorkspace)).toBe(false);
     });

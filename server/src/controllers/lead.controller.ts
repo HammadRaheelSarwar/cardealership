@@ -1,9 +1,13 @@
+import { markLeadSold as recordSale } from './workspace.controller';
 import { Request, Response, NextFunction } from 'express';
 import { supabase } from '../config/supabase';
 import { eventBus } from '../events/bus';
 import { AppError } from '../utils/AppError';
 import { sendSuccess, sendPaginated } from '../utils/response';
-import type { CreateLeadInput, LeadQueryInput } from '../validators/lead.validator';
+import type {
+  CreateLeadInput,
+  LeadQueryInput,
+} from '../validators/lead.validator';
 
 // ─── GET /api/v1/leads ───────────────────────────────────────────────────────
 
@@ -34,14 +38,19 @@ export async function getLeads(
     }
 
     if (query.stageId) dbQuery = dbQuery.eq('pipeline_stage_id', query.stageId);
-    if (query.temperature) dbQuery = dbQuery.eq('temperature', query.temperature);
+    if (query.temperature)
+      dbQuery = dbQuery.eq('temperature', query.temperature);
     if (query.priority) dbQuery = dbQuery.eq('priority', query.priority);
     if (query.status) dbQuery = dbQuery.eq('status', query.status);
     else dbQuery = dbQuery.eq('status', 'open');
 
     if (query.sourceId) dbQuery = dbQuery.eq('source_id', query.sourceId);
 
-    const { data: leads, count, error } = await dbQuery
+    const {
+      data: leads,
+      count,
+      error,
+    } = await dbQuery
       .order('updated_at', { ascending: false })
       .range(skip, skip + limit - 1);
 
@@ -79,7 +88,11 @@ export async function createLead(
         .select()
         .single();
 
-      if (custErr || !customer) throw new AppError(`Failed to create customer: ${custErr?.message}`, 400);
+      if (custErr || !customer)
+        throw new AppError(
+          `Failed to create customer: ${custErr?.message}`,
+          400
+        );
       customerId = customer.id;
     }
 
@@ -114,14 +127,19 @@ export async function createLead(
         temperature: body.temperature || 'warm',
         estimated_value: body.estimatedValue || 0,
         notes: body.notes,
-        next_follow_up_at: body.nextFollowUpAt ? new Date(body.nextFollowUpAt).toISOString() : null,
+        next_follow_up_at: body.nextFollowUpAt
+          ? new Date(body.nextFollowUpAt).toISOString()
+          : null,
         last_contact_at: new Date().toISOString(),
         status: 'open',
       })
-      .select('*, customer:customers(*), vehicle:vehicles(*), assigned_user:profiles!leads_assigned_user_id_fkey(*), stage:pipeline_stages(*)')
+      .select(
+        '*, customer:customers(*), vehicle:vehicles(*), assigned_user:profiles!leads_assigned_user_id_fkey(*), stage:pipeline_stages(*)'
+      )
       .single();
 
-    if (leadErr || !lead) throw new AppError(`Failed to create lead: ${leadErr?.message}`, 500);
+    if (leadErr || !lead)
+      throw new AppError(`Failed to create lead: ${leadErr?.message}`, 500);
 
     // Log Activity
     await supabase.from('activities').insert({
@@ -160,7 +178,9 @@ export async function getLead(
   try {
     const { data: lead, error } = await supabase
       .from('leads')
-      .select('*, customer:customers(*), vehicle:vehicles(*), assigned_user:profiles!leads_assigned_user_id_fkey(*), stage:pipeline_stages(*), source:lead_sources(*)')
+      .select(
+        '*, customer:customers(*), vehicle:vehicles(*), assigned_user:profiles!leads_assigned_user_id_fkey(*), stage:pipeline_stages(*), source:lead_sources(*)'
+      )
       .eq('id', req.params.id)
       .eq('dealership_id', req.tenant.dealershipId)
       .is('deleted_at', null)
@@ -192,6 +212,11 @@ export async function updateLeadStage(
       .single();
 
     if (!targetStage) throw new AppError('Pipeline stage not found', 404);
+    if (targetStage.type === 'won')
+      throw new AppError(
+        'Use Mark sold and enter the sale value to close this deal',
+        400
+      );
 
     let status = 'open';
     let soldAt = null;
@@ -235,7 +260,10 @@ export async function updateLeadStage(
       actor: req.user as any,
     });
 
-    sendSuccess(res, { message: `Lead moved to ${targetStage.name}`, data: { lead } });
+    sendSuccess(res, {
+      message: `Lead moved to ${targetStage.name}`,
+      data: { lead },
+    });
   } catch (err) {
     next(err);
   }
@@ -253,7 +281,10 @@ export async function assignLead(
 
     const { data: lead, error } = await supabase
       .from('leads')
-      .update({ assigned_user_id: assignedUserId, updated_at: new Date().toISOString() })
+      .update({
+        assigned_user_id: assignedUserId,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', req.params.id)
       .eq('dealership_id', req.tenant.dealershipId)
       .select('*, assigned_user:profiles!leads_assigned_user_id_fkey(*)')
@@ -284,7 +315,9 @@ export async function updateLeadTemperature(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { temperature } = req.body as { temperature: 'cold' | 'warm' | 'hot' };
+    const { temperature } = req.body as {
+      temperature: 'cold' | 'warm' | 'hot';
+    };
 
     const { data: lead, error } = await supabase
       .from('leads')
@@ -296,7 +329,10 @@ export async function updateLeadTemperature(
 
     if (error || !lead) throw new AppError('Lead not found', 404);
 
-    sendSuccess(res, { message: `Temperature updated to ${temperature}`, data: { lead } });
+    sendSuccess(res, {
+      message: `Temperature updated to ${temperature}`,
+      data: { lead },
+    });
   } catch (err) {
     next(err);
   }
@@ -347,37 +383,8 @@ export async function markLeadSold(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  try {
-    const { soldValue, vehicleId } = req.body as { soldValue: number; vehicleId?: string };
-
-    const { data: soldStage } = await supabase
-      .from('pipeline_stages')
-      .select('id')
-      .eq('dealership_id', req.tenant.dealershipId)
-      .eq('type', 'won')
-      .single();
-
-    const { data: lead, error } = await supabase
-      .from('leads')
-      .update({
-        status: 'won',
-        sold_at: new Date().toISOString(),
-        sold_value: soldValue,
-        ...(vehicleId ? { vehicle_id: vehicleId } : {}),
-        ...(soldStage ? { pipeline_stage_id: soldStage.id } : {}),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', req.params.id)
-      .eq('dealership_id', req.tenant.dealershipId)
-      .select()
-      .single();
-
-    if (error || !lead) throw new AppError('Lead not found', 404);
-
-    sendSuccess(res, { message: 'Lead marked as Sold', data: { lead } });
-  } catch (err) {
-    next(err);
-  }
+  req.body.saleValue = req.body.saleValue ?? req.body.soldValue;
+  await recordSale(req, res, next);
 }
 
 // ─── GET /api/v1/leads/:id/activity ─────────────────────────────────────────

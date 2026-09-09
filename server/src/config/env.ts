@@ -8,7 +8,9 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
   PORT: z.string().default('5000').transform(Number),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
 
@@ -47,9 +49,12 @@ const envSchema = z.object({
   // Email
   EMAIL_PROVIDER: z.enum(['resend', 'sendgrid', 'postmark']).default('resend'),
   RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM_ADDRESS: z.string().optional(),
 
   // Storage
-  STORAGE_PROVIDER: z.enum(['supabase', 'cloudinary', 's3']).default('supabase'),
+  STORAGE_PROVIDER: z
+    .enum(['supabase', 'cloudinary', 's3'])
+    .default('supabase'),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
@@ -71,6 +76,20 @@ if (!parsed.success) {
   console.error('❌  Invalid environment variables:');
   console.error(parsed.error.format());
   process.exit(1);
+}
+
+if (parsed.data.NODE_ENV === 'production') {
+  for (const key of [
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'SUPABASE_ANON_KEY',
+    'JWT_ACCESS_SECRET',
+    'JWT_REFRESH_SECRET',
+    'CLIENT_URL',
+  ]) {
+    if (!process.env[key])
+      throw new Error(`Missing required production setting: ${key}`);
+  }
 }
 
 export const env = parsed.data;

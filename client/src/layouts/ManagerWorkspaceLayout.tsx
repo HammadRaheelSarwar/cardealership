@@ -1,8 +1,18 @@
+import api from '@/services/api';
+import { useActiveDealership } from '@/store/authStore';
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
-  Users, GitMerge, CheckSquare, Inbox, Calendar, BarChart3,
-  TrendingUp, LogOut, Car, AlertTriangle
+  Users,
+  GitMerge,
+  CheckSquare,
+  Inbox,
+  Calendar,
+  BarChart3,
+  TrendingUp,
+  LogOut,
+  Car,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/utils/cn';
@@ -23,8 +33,14 @@ const MANAGER_PERF_NAV = [
 export function ManagerWorkspaceLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const dealership = useActiveDealership();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      /* Clear local session even when disconnected. */
+    }
     logout();
     navigate('/login');
   };
@@ -39,8 +55,12 @@ export function ManagerWorkspaceLayout() {
             <Car className="w-3.5 h-3.5 text-purple-400" />
           </div>
           <div className="overflow-hidden flex-1">
-            <p className="text-xs font-semibold text-white truncate leading-none">Premier Auto Group</p>
-            <p className="text-[10px] text-purple-300 font-medium mt-1 truncate">Manager Portal</p>
+            <p className="text-xs font-semibold text-white truncate leading-none">
+              {dealership?.dealershipId.name || 'Dealership'}
+            </p>
+            <p className="text-[10px] text-purple-300 font-medium mt-1 truncate">
+              Manager Portal
+            </p>
           </div>
         </div>
 
@@ -105,7 +125,7 @@ export function ManagerWorkspaceLayout() {
             <span>Team Alert</span>
           </div>
           <p className="text-[10px] text-[#A0A0A0] mt-1 leading-snug">
-            14 tasks overdue across 3 reps. Review coaching view.
+            Review current team tasks in the coaching view.
           </p>
         </div>
 
@@ -126,8 +146,10 @@ export function ManagerWorkspaceLayout() {
         {/* Manager Header */}
         <header className="h-[52px] border-b border-[rgba(255,255,255,0.06)] bg-[#070707] flex items-center px-4 sm:px-6 gap-3 shrink-0 z-20">
           <div>
-            <h2 className="text-xs font-semibold text-white">Downtown Sales Team</h2>
-            <p className="text-[10px] text-[#6E6E6E]">Shane Miller (Manager)</p>
+            <h2 className="text-xs font-semibold text-white">Sales team</h2>
+            <p className="text-[10px] text-[#6E6E6E]">
+              {user?.firstName} {user?.lastName}
+            </p>
           </div>
 
           <div className="flex items-center gap-3 ml-auto">
@@ -137,7 +159,7 @@ export function ManagerWorkspaceLayout() {
               className="flex items-center gap-1.5 px-2.5 py-1 bg-red-950/40 border border-red-500/30 rounded-md text-[11px] text-red-300 cursor-pointer hover:bg-red-900/30 transition"
             >
               <AlertTriangle className="w-3 h-3 text-red-400" />
-              <span>14 Overdue Tasks</span>
+              <span>View overdue tasks</span>
             </div>
 
             <div className="w-[1px] h-4 bg-white/10 hidden sm:block" />
@@ -151,7 +173,9 @@ export function ManagerWorkspaceLayout() {
                 <p className="text-xs font-semibold text-white leading-none">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="text-[10px] text-purple-300 mt-0.5">Sales Manager</p>
+                <p className="text-[10px] text-purple-300 mt-0.5">
+                  Sales Manager
+                </p>
               </div>
             </div>
           </div>

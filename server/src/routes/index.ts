@@ -1,3 +1,4 @@
+import teamRoutes from './team.routes';
 import { Router } from 'express';
 import authRoutes from './auth.routes';
 import dealershipRoutes from './dealership.routes';
@@ -24,11 +25,16 @@ import workspaceRoutes from './workspace.routes';
 const router = Router();
 
 router.get('/health', (_req, res) => {
-  res.json({ success: true, message: 'API is running', timestamp: new Date().toISOString() });
+  res.json({
+    success: true,
+    message: 'API is running',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 router.use('/auth', authRoutes);
 router.use('/workspace', workspaceRoutes);
+router.use('/team', teamRoutes);
 router.use('/dealerships', dealershipRoutes);
 router.use('/customers', customerRoutes);
 router.use('/vehicles', vehicleRoutes);

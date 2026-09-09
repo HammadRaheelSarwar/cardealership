@@ -1,8 +1,20 @@
+import { useLiveQuery } from '@/hooks/useLiveQuery';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, AlertTriangle, TrendingUp, Sparkles, ChevronRight,
-  Phone, MessageSquare, Mail, Calendar, CheckCircle2, AlertCircle, X, ChevronDown
+  Users,
+  AlertTriangle,
+  TrendingUp,
+  Sparkles,
+  ChevronRight,
+  Phone,
+  MessageSquare,
+  Mail,
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  ChevronDown,
 } from 'lucide-react';
 import { fetchManagerWorkspace } from '@/services/workspaceService';
 import type {
@@ -14,30 +26,22 @@ import type {
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [workspace, setWorkspace] = useState<ManagerWorkspaceData | null>(null);
   const [range, setRange] = useState<DateRangePreset>('mtd');
 
   // Drilldown modals
-  const [activeOverdueRep, setActiveOverdueRep] = useState<OverdueSalespersonBreakdown | null>(null);
-  const [activeRepScorecard, setActiveRepScorecard] = useState<SalespersonPerformanceMetric | null>(null);
+  const [activeOverdueRep, setActiveOverdueRep] =
+    useState<OverdueSalespersonBreakdown | null>(null);
+  const [activeRepScorecard, setActiveRepScorecard] =
+    useState<SalespersonPerformanceMetric | null>(null);
 
-  useEffect(() => {
-    loadWorkspace(range);
-  }, [range]);
-
-  const loadWorkspace = async (selectedRange: DateRangePreset) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchManagerWorkspace(selectedRange);
-      setWorkspace(data);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to load manager workspace.');
-    } finally {
-      setLoading(false);
-    }
+  const workspaceQuery = useLiveQuery(['workspace', 'manager', range], () =>
+    fetchManagerWorkspace(range)
+  );
+  const workspace = workspaceQuery.data;
+  const loading = workspaceQuery.isPending;
+  const error = workspaceQuery.error?.message;
+  const loadWorkspace = async (_range?: DateRangePreset) => {
+    await workspaceQuery.refetch();
   };
 
   if (loading) {
@@ -54,9 +58,16 @@ export default function ManagerDashboard() {
     return (
       <div className="p-6 max-w-xl mx-auto bg-red-950/20 border border-red-500/30 rounded-xl text-center space-y-3">
         <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-        <h3 className="text-sm font-semibold text-white">Error Loading Manager Workspace</h3>
-        <p className="text-xs text-[#A0A0A0]">{error || 'Unable to load team workspace.'}</p>
-        <button onClick={() => loadWorkspace(range)} className="btn-secondary btn-sm mt-2">
+        <h3 className="text-sm font-semibold text-white">
+          Error Loading Manager Workspace
+        </h3>
+        <p className="text-xs text-[#A0A0A0]">
+          {error || 'Unable to load team workspace.'}
+        </p>
+        <button
+          onClick={() => loadWorkspace(range)}
+          className="btn-secondary btn-sm mt-2"
+        >
           Retry
         </button>
       </div>
@@ -72,7 +83,7 @@ export default function ManagerDashboard() {
             Team Pipeline & Accountability
           </h1>
           <p className="text-xs text-[#8C8C8C] mt-0.5">
-            Monitoring Downtown Sales Team · {workspace.managerName}
+            Monitoring assigned sales team · {workspace.managerName}
           </p>
         </div>
 
@@ -83,10 +94,18 @@ export default function ManagerDashboard() {
               key={r}
               onClick={() => setRange(r)}
               className={`px-2.5 py-1 rounded font-medium transition ${
-                range === r ? 'bg-[#222222] text-[#E6C85C] shadow-sm' : 'text-[#8C8C8C] hover:text-white'
+                range === r
+                  ? 'bg-[#222222] text-[#E6C85C] shadow-sm'
+                  : 'text-[#8C8C8C] hover:text-white'
               }`}
             >
-              {r === 'today' ? 'Today' : r === '7d' ? '7 Days' : r === '30d' ? '30 Days' : 'Month to Date'}
+              {r === 'today'
+                ? 'Today'
+                : r === '7d'
+                  ? '7 Days'
+                  : r === '30d'
+                    ? '30 Days'
+                    : 'Month to Date'}
             </button>
           ))}
         </div>
@@ -98,7 +117,9 @@ export default function ManagerDashboard() {
           <span className="text-[11px] font-bold text-[#6E6E6E] uppercase tracking-wider">
             Team Pipeline (Total Team Lead Velocity)
           </span>
-          <span className="text-[11px] text-[#A0A0A0]">Click any stage count to review</span>
+          <span className="text-[11px] text-[#A0A0A0]">
+            Click any stage count to review
+          </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
@@ -152,7 +173,9 @@ export default function ManagerDashboard() {
               {workspace.totalOverdueTasks} Overdue Tasks Across Team
             </h2>
           </div>
-          <span className="text-[11px] text-[#A0A0A0]">Click salesperson to open overdue queue</span>
+          <span className="text-[11px] text-[#A0A0A0]">
+            Click salesperson to open overdue queue
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -205,7 +228,9 @@ export default function ManagerDashboard() {
               </p>
 
               <div className="pt-2 border-t border-white/[0.04] text-[11px] text-[#A0A0A0]">
-                <span className="text-[#D4AF37] font-semibold">Recommended Coaching:</span>{' '}
+                <span className="text-[#D4AF37] font-semibold">
+                  Recommended Coaching:
+                </span>{' '}
                 {coach.actionRecommendation}
               </div>
             </div>
@@ -219,7 +244,9 @@ export default function ManagerDashboard() {
           <h2 className="text-xs font-bold text-[#6E6E6E] uppercase tracking-wider">
             Salespeople Performance Scorecard
           </h2>
-          <span className="text-[11px] text-[#8C8C8C]">Activity, appointments & conversion benchmarks</span>
+          <span className="text-[11px] text-[#8C8C8C]">
+            Activity, appointments & conversion benchmarks
+          </span>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#0A0A0A]">
@@ -250,17 +277,33 @@ export default function ManagerDashboard() {
                   <td className="p-3 font-semibold text-white">{rep.name}</td>
                   <td className="p-3 font-mono">{rep.activeLeads}</td>
                   <td className="p-3 font-mono">{rep.tasksDue}</td>
-                  <td className="p-3 font-mono text-red-400 font-semibold">{rep.overdueTasks}</td>
-                  <td className="p-3 font-mono text-cyan-400">{rep.appointmentsToday}</td>
-                  <td className="p-3 font-mono text-[#A0A0A0]">{rep.callsMade}</td>
-                  <td className="p-3 font-mono text-[#A0A0A0]">{rep.textsSent}</td>
+                  <td className="p-3 font-mono text-red-400 font-semibold">
+                    {rep.overdueTasks}
+                  </td>
+                  <td className="p-3 font-mono text-cyan-400">
+                    {rep.appointmentsToday}
+                  </td>
+                  <td className="p-3 font-mono text-[#A0A0A0]">
+                    {rep.callsMade}
+                  </td>
+                  <td className="p-3 font-mono text-[#A0A0A0]">
+                    {rep.textsSent}
+                  </td>
                   <td className="p-3 font-mono">{rep.showRate}%</td>
-                  <td className="p-3 font-mono font-semibold text-emerald-400">{rep.soldUnits}</td>
-                  <td className="p-3 font-mono text-[#E6C85C] font-semibold">{rep.conversionRate}%</td>
+                  <td className="p-3 font-mono font-semibold text-emerald-400">
+                    {rep.soldUnits}
+                  </td>
+                  <td className="p-3 font-mono text-[#E6C85C] font-semibold">
+                    {rep.conversionRate}%
+                  </td>
                   <td className="p-3 font-mono">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                      rep.taskCompletionRate >= 85 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                    }`}>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] ${
+                        rep.taskCompletionRate >= 85
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-red-500/10 text-red-400'
+                      }`}
+                    >
                       {rep.taskCompletionRate}%
                     </span>
                   </td>
@@ -310,13 +353,17 @@ export default function ManagerDashboard() {
                   className="p-3 bg-[#151212] border border-red-500/20 rounded-lg space-y-1"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-white">{t.title}</span>
+                    <span className="text-xs font-semibold text-white">
+                      {t.title}
+                    </span>
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">
                       {t.daysOverdue}d overdue
                     </span>
                   </div>
                   <p className="text-xs text-[#8C8C8C]">
-                    Customer: <span className="text-white">{t.customerName}</span> · {t.vehicle}
+                    Customer:{' '}
+                    <span className="text-white">{t.customerName}</span> ·{' '}
+                    {t.vehicle}
                   </p>
                 </div>
               ))}
@@ -340,8 +387,12 @@ export default function ManagerDashboard() {
           <div className="bg-[#0F0F0F] border border-[rgba(212,175,55,0.3)] rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
               <div>
-                <h3 className="text-sm font-semibold text-white">{activeRepScorecard.name}</h3>
-                <p className="text-xs text-[#8C8C8C]">Individual Salesperson Diagnostic</p>
+                <h3 className="text-sm font-semibold text-white">
+                  {activeRepScorecard.name}
+                </h3>
+                <p className="text-xs text-[#8C8C8C]">
+                  Individual Salesperson Diagnostic
+                </p>
               </div>
               <button
                 onClick={() => setActiveRepScorecard(null)}
@@ -353,20 +404,36 @@ export default function ManagerDashboard() {
 
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="p-2.5 bg-[#141414] rounded">
-                <span className="text-[#8C8C8C] block text-[10px] uppercase">Active Leads</span>
-                <span className="text-base font-bold text-white font-mono">{activeRepScorecard.activeLeads}</span>
+                <span className="text-[#8C8C8C] block text-[10px] uppercase">
+                  Active Leads
+                </span>
+                <span className="text-base font-bold text-white font-mono">
+                  {activeRepScorecard.activeLeads}
+                </span>
               </div>
               <div className="p-2.5 bg-[#141414] rounded">
-                <span className="text-[#8C8C8C] block text-[10px] uppercase">Task Completion</span>
-                <span className="text-base font-bold text-white font-mono">{activeRepScorecard.taskCompletionRate}%</span>
+                <span className="text-[#8C8C8C] block text-[10px] uppercase">
+                  Task Completion
+                </span>
+                <span className="text-base font-bold text-white font-mono">
+                  {activeRepScorecard.taskCompletionRate}%
+                </span>
               </div>
               <div className="p-2.5 bg-[#141414] rounded">
-                <span className="text-[#8C8C8C] block text-[10px] uppercase">Show Rate</span>
-                <span className="text-base font-bold text-white font-mono">{activeRepScorecard.showRate}%</span>
+                <span className="text-[#8C8C8C] block text-[10px] uppercase">
+                  Show Rate
+                </span>
+                <span className="text-base font-bold text-white font-mono">
+                  {activeRepScorecard.showRate}%
+                </span>
               </div>
               <div className="p-2.5 bg-[#141414] rounded">
-                <span className="text-[#8C8C8C] block text-[10px] uppercase">Conversion</span>
-                <span className="text-base font-bold text-[#E6C85C] font-mono">{activeRepScorecard.conversionRate}%</span>
+                <span className="text-[#8C8C8C] block text-[10px] uppercase">
+                  Conversion
+                </span>
+                <span className="text-base font-bold text-[#E6C85C] font-mono">
+                  {activeRepScorecard.conversionRate}%
+                </span>
               </div>
             </div>
 

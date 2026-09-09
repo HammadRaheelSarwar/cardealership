@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/v1`
+    ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '').replace(/\/api\/v1$/, '')}/api/v1`
     : '/api/v1',
   withCredentials: true, // Required for httpOnly refresh token cookies
   headers: {
@@ -49,15 +49,36 @@ function processQueue(error: unknown, token: string | null = null) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (
+      !response.data ||
+      typeof response.data !== 'object' ||
+      response.data.success !== true
+    ) {
+      return Promise.reject(
+        new Error(
+          'The API returned an invalid response. Check that the backend is deployed and connected.'
+        )
+      );
+    }
+    if (
+      response.config.method &&
+      !['get', 'head', 'options'].includes(response.config.method) &&
+      !response.config.url?.startsWith('/auth/')
+    ) {
+      window.dispatchEvent(new Event('crm:data-changed'));
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
     // If 401 and not already a retry/refresh request
     if (
       error.response?.status === 401 &&
+      originalRequest &&
       !originalRequest._retry &&
-      originalRequest.url !== '/auth/refresh'
+      !originalRequest.url?.startsWith('/auth/')
     ) {
       if (isRefreshing) {
         // Queue subsequent 401s until refresh completes
