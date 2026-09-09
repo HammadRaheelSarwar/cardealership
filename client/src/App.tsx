@@ -34,6 +34,10 @@ const TasksPage = lazy(() => import('@/pages/app/TasksPage'));
 const AppointmentsPage = lazy(() => import('@/pages/app/AppointmentsPage'));
 const ReportsPage = lazy(() => import('@/pages/app/ReportsPage'));
 const ActivityCoachingPage = lazy(() => import('@/pages/app/ActivityCoachingPage'));
+const ConversionFunnelPage = lazy(() => import('@/pages/app/ConversionFunnelPage'));
+const SalesVolumePage = lazy(() => import('@/pages/app/SalesVolumePage'));
+const FinancialReportsPage = lazy(() => import('@/pages/app/FinancialReportsPage'));
+const ManagersComparisonPage = lazy(() => import('@/pages/app/ManagersComparisonPage'));
 const TeamPage = lazy(() => import('@/pages/app/TeamPage'));
 const IntegrationsPage = lazy(() => import('@/pages/app/IntegrationsPage'));
 const SettingsPage = lazy(() => import('@/pages/app/SettingsPage'));
@@ -93,6 +97,13 @@ function RoleHomeRedirect() {
   return <Navigate to="/owner-overview" replace />;
 }
 
+function AdaptiveWorkspaceLayout() {
+  const role = useActiveMembershipRole();
+  if (role === 'salesperson') return <SalesWorkspaceLayout />;
+  if (role === 'manager') return <ManagerWorkspaceLayout />;
+  return <OwnerWorkspaceLayout />;
+}
+
 // ─── App Routes ───────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -110,6 +121,20 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
+        {/* ── SHARED WORKSPACE ROUTES (Inbox, Appointments, Lead Detail, Reports) ── */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AdaptiveWorkspaceLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/appointments" element={<AppointmentsPage />} />
+          <Route path="/leads/:id" element={<LeadDetailPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+        </Route>
+
         {/* ── 1. SALESPERSON WORKSPACE ROUTES (§3, §4, §24) ── */}
         <Route
           element={
@@ -120,9 +145,6 @@ export default function App() {
         >
           <Route path="/my-pipeline" element={<SalespersonDashboard />} />
           <Route path="/my-tasks" element={<TasksPage />} />
-          <Route path="/inbox" element={<InboxPage />} />
-          <Route path="/appointments" element={<AppointmentsPage />} />
-          <Route path="/leads/:id" element={<LeadDetailPage />} />
         </Route>
 
         {/* ── 2. MANAGER WORKSPACE ROUTES (§3, §12, §24) ── */}
@@ -138,7 +160,6 @@ export default function App() {
           <Route path="/salespeople" element={<TeamPage />} />
           <Route path="/salespeople/:id" element={<TeamPage />} />
           <Route path="/performance" element={<ActivityCoachingPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
         </Route>
 
         {/* ── 3. OWNER WORKSPACE ROUTES (§3, §18, §24) ── */}
@@ -150,10 +171,10 @@ export default function App() {
           }
         >
           <Route path="/owner-overview" element={<OwnerDashboard />} />
-          <Route path="/managers" element={<TeamPage />} />
-          <Route path="/sales" element={<ReportsPage />} />
-          <Route path="/conversion" element={<ReportsPage />} />
-          <Route path="/financial-reports" element={<ReportsPage />} />
+          <Route path="/managers" element={<ManagersComparisonPage />} />
+          <Route path="/sales" element={<SalesVolumePage />} />
+          <Route path="/conversion" element={<ConversionFunnelPage />} />
+          <Route path="/financial-reports" element={<FinancialReportsPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/integrations" element={<IntegrationsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
