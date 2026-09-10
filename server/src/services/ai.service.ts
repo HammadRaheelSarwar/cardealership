@@ -64,13 +64,13 @@ export class AIService {
     channel: 'sms' | 'email';
     tone?: string;
   }): Promise<AIReplySuggestion> {
-    const data = await generate(
+    const data = await generate<{ replyText: string }>(
       'Draft a reply. JSON fields: replyText (string).',
       options,
-      z.object({ replyText: z.string() })
+      z.object({ replyText: z.string().min(1) })
     );
     return {
-      ...data,
+      replyText: data.replyText,
       channel: options.channel,
       tone: options.tone || 'professional',
     };

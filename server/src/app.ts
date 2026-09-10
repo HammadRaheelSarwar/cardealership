@@ -121,8 +121,8 @@ async function start(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info(`${signal} received — shutting down gracefully`);
     server.close(async () => {
-      const { disconnectDatabase } = await import('./config/database');
-      const { disconnectRedis } = await import('./config/redis');
+      const { disconnectDatabase } = await import('./config/database.js');
+      const { disconnectRedis } = await import('./config/redis.js');
       await disconnectDatabase();
       await disconnectRedis();
       process.exit(0);
