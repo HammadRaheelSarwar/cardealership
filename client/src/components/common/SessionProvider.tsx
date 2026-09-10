@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/services/api";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const REALTIME_TABLES = [
   "dealership_memberships",
@@ -35,6 +35,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     async function restore() {
+      if (!useAuthStore.getState().user) {
+        if (active) setReady(true);
+        return;
+      }
       try {
         const token = (await api.post("/auth/refresh")).data.data.accessToken;
         useAuthStore.getState().setAccessToken(token);
@@ -65,9 +69,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("crm:data-changed", refresh);
   }, [client]);
   useEffect(() => {
-    if (!tenant) return;
+    const realtime = supabase;
+    if (!tenant || !realtime) return;
 
-    const channel = supabase.channel(`dealership:${tenant}`);
+    const channel = realtime.channel(`dealership:${tenant}`);
     channel.on(
       "postgres_changes",
       {
@@ -108,11 +113,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     channel.subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void realtime.removeChannel(channel);
     };
   }, [tenant, client]);
   return ready ? (
-    <>{children}</>
+    <>
+      {!isSupabaseConfigured && (
+        <div
+          role="alert"
+          className="fixed inset-x-0 top-0 z-[100] bg-amber-500 px-4 py-2 text-center text-sm font-semibold text-black"
+        >
+          Live updates are unavailable. Set VITE_SUPABASE_URL and
+          VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.
+        </div>
+      )}
+      {children}
+    </>
   ) : (
     <div className="p-8 text-gray-400">Restoring session…</div>
   );

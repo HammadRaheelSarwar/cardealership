@@ -9,9 +9,10 @@ export function useRealtimeSubscription(
   const { activeDealershipId } = useAuthStore();
 
   useEffect(() => {
-    if (!activeDealershipId) return;
+    const realtime = supabase;
+    if (!activeDealershipId || !realtime) return;
 
-    const channel = supabase
+    const channel = realtime
       .channel(`realtime:${table}:${activeDealershipId}`)
       .on(
         'postgres_changes',
@@ -28,7 +29,7 @@ export function useRealtimeSubscription(
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      realtime.removeChannel(channel);
     };
   }, [table, activeDealershipId, onPayload]);
 }

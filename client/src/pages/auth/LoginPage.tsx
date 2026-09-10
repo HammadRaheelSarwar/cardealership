@@ -40,7 +40,7 @@ export default function LoginPage() {
         supabaseAccessToken,
         supabaseRefreshToken,
       } = res.data.data;
-      if (supabaseAccessToken && supabaseRefreshToken) {
+      if (supabase && supabaseAccessToken && supabaseRefreshToken) {
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: supabaseAccessToken,
           refresh_token: supabaseRefreshToken,

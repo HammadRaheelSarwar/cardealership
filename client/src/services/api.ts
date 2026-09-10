@@ -8,6 +8,7 @@ export const api = axios.create({
     ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '').replace(/\/api\/v1$/, '')}/api/v1`
     : '/api/v1',
   withCredentials: true, // Required for httpOnly refresh token cookies
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },

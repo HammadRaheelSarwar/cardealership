@@ -135,7 +135,7 @@ export const useAuthStore = create<AuthState>()(
       setMemberships: (memberships) => set({ memberships }),
 
       logout: () => {
-        void supabase.auth.signOut();
+        if (supabase) void supabase.auth.signOut();
         set({
           user: null,
           accessToken: null,

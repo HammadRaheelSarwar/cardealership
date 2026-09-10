@@ -108,7 +108,7 @@ export default function RegisterPage() {
         regRes.data.data;
       setRegistered(regRes.data.data);
 
-      if (supabaseAccessToken && supabaseRefreshToken) {
+      if (supabase && supabaseAccessToken && supabaseRefreshToken) {
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: supabaseAccessToken,
           refresh_token: supabaseRefreshToken,
