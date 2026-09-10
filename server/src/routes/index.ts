@@ -21,14 +21,31 @@ import adminRoutes from './admin.routes';
 import integrationRoutes from './integration.routes';
 import webhookRoutes from './webhook.routes';
 import workspaceRoutes from './workspace.routes';
+import { missingProductionSettings } from '../config/env';
 
 const router = Router();
 
 router.get('/health', (_req, res) => {
-  res.json({
-    success: true,
-    message: 'API is running',
+  const configured = missingProductionSettings.length === 0;
+  res.status(configured ? 200 : 503).json({
+    success: configured,
+    message: configured
+      ? 'API is running'
+      : 'API deployment is missing required environment variables.',
+    ...(configured ? {} : { missing: missingProductionSettings }),
     timestamp: new Date().toISOString(),
+  });
+});
+
+router.use((_req, res, next) => {
+  if (missingProductionSettings.length === 0) {
+    next();
+    return;
+  }
+
+  res.status(503).json({
+    success: false,
+    message: `Server configuration is incomplete. Add these Vercel environment variables and redeploy: ${missingProductionSettings.join(', ')}`,
   });
 });
 

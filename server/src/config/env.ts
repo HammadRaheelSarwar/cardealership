@@ -78,19 +78,19 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-if (parsed.data.NODE_ENV === 'production') {
-  for (const key of [
-    'SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'SUPABASE_ANON_KEY',
-    'JWT_ACCESS_SECRET',
-    'JWT_REFRESH_SECRET',
-    'CLIENT_URL',
-  ]) {
-    if (!process.env[key])
-      throw new Error(`Missing required production setting: ${key}`);
-  }
-}
+const requiredProductionSettings = [
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_ANON_KEY',
+  'JWT_ACCESS_SECRET',
+  'JWT_REFRESH_SECRET',
+  'CLIENT_URL',
+] as const;
+
+export const missingProductionSettings =
+  parsed.data.NODE_ENV === 'production'
+    ? requiredProductionSettings.filter((key) => !process.env[key])
+    : [];
 
 export const env = parsed.data;
 export type Env = typeof env;
