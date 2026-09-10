@@ -1,5 +1,6 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { supabase } from "@/lib/supabase";
 
 interface User {
   _id: string;
@@ -7,8 +8,8 @@ interface User {
   lastName: string;
   email: string;
   avatar?: string;
-  platformRole: 'user' | 'superAdmin';
-  status: 'active' | 'invited' | 'suspended';
+  platformRole: "user" | "superAdmin";
+  status: "active" | "invited" | "suspended";
   emailVerified: boolean;
 }
 
@@ -22,7 +23,7 @@ interface DealershipMembership {
     status: string;
     timezone: string;
   };
-  role: 'owner' | 'manager' | 'salesperson';
+  role: "owner" | "manager" | "salesperson";
   permissions: string[];
   status: string;
 }
@@ -32,7 +33,7 @@ type ApiUser = User & {
   first_name?: string;
   last_name?: string;
   avatar_url?: string;
-  platform_role?: 'user' | 'super_admin';
+  platform_role?: "user" | "super_admin";
   email_verified?: boolean;
 };
 
@@ -52,12 +53,13 @@ type ApiMembership = DealershipMembership & {
 function normalizeUser(user: ApiUser): User {
   return {
     ...user,
-    _id: user._id ?? user.id ?? '',
-    firstName: user.firstName ?? user.first_name ?? '',
-    lastName: user.lastName ?? user.last_name ?? '',
+    _id: user._id ?? user.id ?? "",
+    firstName: user.firstName ?? user.first_name ?? "",
+    lastName: user.lastName ?? user.last_name ?? "",
     avatar: user.avatar ?? user.avatar_url,
     platformRole:
-      user.platformRole ?? (user.platform_role === 'super_admin' ? 'superAdmin' : 'user'),
+      user.platformRole ??
+      (user.platform_role === "super_admin" ? "superAdmin" : "user"),
     emailVerified: user.emailVerified ?? user.email_verified ?? false,
   };
 }
@@ -68,14 +70,14 @@ function normalizeMembership(membership: ApiMembership): DealershipMembership {
   const dealership = membership.dealership;
   return {
     ...membership,
-    _id: membership._id ?? membership.id ?? '',
+    _id: membership._id ?? membership.id ?? "",
     dealershipId: {
-      _id: dealership?.id ?? membership.dealership_id ?? '',
-      name: dealership?.name ?? 'DealerOS CRM',
-      slug: dealership?.slug ?? '',
+      _id: dealership?.id ?? membership.dealership_id ?? "",
+      name: dealership?.name ?? "DealerOS CRM",
+      slug: dealership?.slug ?? "",
       logo: dealership?.logo_url,
-      status: dealership?.status ?? 'active',
-      timezone: dealership?.timezone ?? 'UTC',
+      status: dealership?.status ?? "active",
+      timezone: dealership?.timezone ?? "UTC",
     },
     permissions: membership.permissions ?? [],
   };
@@ -89,7 +91,11 @@ interface AuthState {
   isAuthenticated: boolean;
 
   // Actions
-  setAuth: (data: { user: ApiUser; accessToken: string; memberships?: ApiMembership[] }) => void;
+  setAuth: (data: {
+    user: ApiUser;
+    accessToken: string;
+    memberships?: ApiMembership[];
+  }) => void;
   setAccessToken: (token: string) => void;
   setActiveDealership: (dealershipId: string) => void;
   setMemberships: (memberships: DealershipMembership[]) => void;
@@ -109,7 +115,9 @@ export const useAuthStore = create<AuthState>()(
         const normalizedUser = normalizeUser(user);
         const normalizedMemberships = memberships.map(normalizeMembership);
         const activeDealershipId =
-          normalizedMemberships.length > 0 ? normalizedMemberships[0].dealershipId._id : null;
+          normalizedMemberships.length > 0
+            ? normalizedMemberships[0].dealershipId._id
+            : null;
         set({
           user: normalizedUser,
           accessToken,
@@ -126,17 +134,19 @@ export const useAuthStore = create<AuthState>()(
 
       setMemberships: (memberships) => set({ memberships }),
 
-      logout: () =>
+      logout: () => {
+        void supabase.auth.signOut();
         set({
           user: null,
           accessToken: null,
           memberships: [],
           activeDealershipId: null,
           isAuthenticated: false,
-        }),
+        });
+      },
     }),
     {
-      name: 'crm-auth',
+      name: "crm-auth",
       // Only persist non-sensitive state — access token is in-memory only
       partialize: (state) => ({
         user: state.user,
@@ -144,13 +154,15 @@ export const useAuthStore = create<AuthState>()(
         memberships: state.memberships,
         // accessToken is NOT persisted — refresh token cookie handles re-auth
       }),
-    }
-  )
+    },
+  ),
 );
 
 export const useActiveDealership = () => {
   const { memberships, activeDealershipId } = useAuthStore();
-  return memberships.find((m) => m.dealershipId._id === activeDealershipId) ?? null;
+  return (
+    memberships.find((m) => m.dealershipId._id === activeDealershipId) ?? null
+  );
 };
 
 export const useActiveMembershipRole = (): string | null => {

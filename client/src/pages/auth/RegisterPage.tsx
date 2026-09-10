@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Car,
   CheckCircle2,
@@ -11,16 +11,17 @@ import {
   ShieldCheck,
   AlertCircle,
   ArrowRight,
-} from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
-import api from '@/services/api';
+} from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import api from "@/services/api";
+import { supabase } from "@/lib/supabase";
 
 const STEPS = [
-  { id: 1, label: 'Your Account' },
-  { id: 2, label: 'Dealership Profile' },
-  { id: 3, label: 'Location & Timezone' },
-  { id: 4, label: 'Sales Pipeline' },
-  { id: 5, label: 'Finish setup' },
+  { id: 1, label: "Your Account" },
+  { id: 2, label: "Dealership Profile" },
+  { id: 3, label: "Location & Timezone" },
+  { id: 4, label: "Sales Pipeline" },
+  { id: 5, label: "Finish setup" },
 ];
 
 export default function RegisterPage() {
@@ -41,33 +42,33 @@ export default function RegisterPage() {
   // Form State
   const [formData, setFormData] = useState({
     // Step 1: User
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    password: '',
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
 
     // Step 2: Dealership
-    dealershipName: '',
-    dealershipEmail: '',
-    website: '',
+    dealershipName: "",
+    dealershipEmail: "",
+    website: "",
 
     // Step 3: Location
-    timezone: 'America/New_York',
-    street: '',
-    city: '',
-    state: '',
-    zip: '',
+    timezone: "America/New_York",
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
 
     // Step 4: Pipeline stages review (fixed default presets)
     stages: [
-      'New',
-      'Contacted',
-      'Follow-Up',
-      'Appointment',
-      'Negotiation',
-      'Sold',
-      'Lost',
+      "New",
+      "Contacted",
+      "Follow-Up",
+      "Appointment",
+      "Negotiation",
+      "Sold",
+      "Lost",
     ],
 
     // Step 5: Team Invites
@@ -95,7 +96,7 @@ export default function RegisterPage() {
       // 1. Register User Account
       const regRes = registered
         ? { data: { data: registered } }
-        : await api.post('/auth/register', {
+        : await api.post("/auth/register", {
             firstName: formData.firstName,
             lastName: formData.lastName,
             email: formData.email,
@@ -103,15 +104,24 @@ export default function RegisterPage() {
             password: formData.password,
           });
 
-      const { user, accessToken } = regRes.data.data;
+      const { user, accessToken, supabaseAccessToken, supabaseRefreshToken } =
+        regRes.data.data;
       setRegistered(regRes.data.data);
+
+      if (supabaseAccessToken && supabaseRefreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: supabaseAccessToken,
+          refresh_token: supabaseRefreshToken,
+        });
+        if (sessionError) throw sessionError;
+      }
 
       // 2. Set token temporarily in headers to authorize dealership creation
       useAuthStore.getState().setAccessToken(accessToken);
 
       // 3. Create Dealership
       if (!createdDealership)
-        await api.post('/dealerships', {
+        await api.post("/dealerships", {
           name: formData.dealershipName,
           email: formData.dealershipEmail || formData.email,
           website: formData.website || undefined,
@@ -127,16 +137,16 @@ export default function RegisterPage() {
       setCreatedDealership(true);
 
       // 4. Fetch updated me with active membership
-      const meRes = await api.get('/auth/me');
+      const meRes = await api.get("/auth/me");
       const { memberships } = meRes.data.data;
 
       setAuth({ user, accessToken, memberships });
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err: any) {
       setError(
         err.response?.data?.message ||
           err.message ||
-          'Unable to create your account. Please try again.'
+          "Unable to create your account. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -175,10 +185,10 @@ export default function RegisterPage() {
             <div
               className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition ${
                 s.id === step
-                  ? 'bg-primary text-white shadow'
+                  ? "bg-primary text-white shadow"
                   : s.id < step
-                    ? 'bg-green-100 text-success'
-                    : 'bg-bg-secondary text-text-muted border border-border-light'
+                    ? "bg-green-100 text-success"
+                    : "bg-bg-secondary text-text-muted border border-border-light"
               }`}
             >
               {s.id < step ? <CheckCircle2 className="w-4 h-4" /> : s.id}
@@ -186,7 +196,7 @@ export default function RegisterPage() {
             {s.id !== 5 && (
               <div
                 className={`w-10 sm:w-14 h-0.5 mx-1 transition ${
-                  s.id < step ? 'bg-success' : 'bg-border-light'
+                  s.id < step ? "bg-success" : "bg-border-light"
                 }`}
               />
             )}
@@ -215,7 +225,7 @@ export default function RegisterPage() {
                   type="text"
                   required
                   value={formData.firstName}
-                  onChange={(e) => updateField('firstName', e.target.value)}
+                  onChange={(e) => updateField("firstName", e.target.value)}
                   placeholder="Alex"
                   className="crm-input"
                 />
@@ -228,7 +238,7 @@ export default function RegisterPage() {
                   type="text"
                   required
                   value={formData.lastName}
-                  onChange={(e) => updateField('lastName', e.target.value)}
+                  onChange={(e) => updateField("lastName", e.target.value)}
                   placeholder="Morgan"
                   className="crm-input"
                 />
@@ -243,8 +253,8 @@ export default function RegisterPage() {
                 type="email"
                 required
                 value={formData.email}
-                onChange={(e) => updateField('email', e.target.value)}
-                placeholder="alex@premierautogroup.com"
+                onChange={(e) => updateField("email", e.target.value)}
+                placeholder="you@yourdealership.com"
                 className="crm-input"
               />
             </div>
@@ -256,7 +266,7 @@ export default function RegisterPage() {
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => updateField('phone', e.target.value)}
+                onChange={(e) => updateField("phone", e.target.value)}
                 placeholder="+1 (555) 234-5678"
                 className="crm-input"
               />
@@ -271,7 +281,7 @@ export default function RegisterPage() {
                 required
                 minLength={8}
                 value={formData.password}
-                onChange={(e) => updateField('password', e.target.value)}
+                onChange={(e) => updateField("password", e.target.value)}
                 placeholder="At least 8 chars, 1 uppercase, 1 number"
                 className="crm-input"
               />
@@ -290,7 +300,7 @@ export default function RegisterPage() {
                 type="text"
                 required
                 value={formData.dealershipName}
-                onChange={(e) => updateField('dealershipName', e.target.value)}
+                onChange={(e) => updateField("dealershipName", e.target.value)}
                 placeholder="Your dealership name"
                 className="crm-input"
               />
@@ -303,8 +313,8 @@ export default function RegisterPage() {
               <input
                 type="email"
                 value={formData.dealershipEmail}
-                onChange={(e) => updateField('dealershipEmail', e.target.value)}
-                placeholder="sales@premierautogroup.com"
+                onChange={(e) => updateField("dealershipEmail", e.target.value)}
+                placeholder="contact@yourdealership.com"
                 className="crm-input"
               />
             </div>
@@ -316,8 +326,8 @@ export default function RegisterPage() {
               <input
                 type="url"
                 value={formData.website}
-                onChange={(e) => updateField('website', e.target.value)}
-                placeholder="https://www.premierautogroup.com"
+                onChange={(e) => updateField("website", e.target.value)}
+                placeholder="https://www.yourdealership.com"
                 className="crm-input"
               />
             </div>
@@ -333,7 +343,7 @@ export default function RegisterPage() {
               </label>
               <select
                 value={formData.timezone}
-                onChange={(e) => updateField('timezone', e.target.value)}
+                onChange={(e) => updateField("timezone", e.target.value)}
                 className="crm-input"
               >
                 <option value="America/New_York">
@@ -359,7 +369,7 @@ export default function RegisterPage() {
               <input
                 type="text"
                 value={formData.street}
-                onChange={(e) => updateField('street', e.target.value)}
+                onChange={(e) => updateField("street", e.target.value)}
                 placeholder="742 Evergreen Terrace"
                 className="crm-input"
               />
@@ -373,7 +383,7 @@ export default function RegisterPage() {
                 <input
                   type="text"
                   value={formData.city}
-                  onChange={(e) => updateField('city', e.target.value)}
+                  onChange={(e) => updateField("city", e.target.value)}
                   placeholder="Austin"
                   className="crm-input"
                 />
@@ -385,7 +395,7 @@ export default function RegisterPage() {
                 <input
                   type="text"
                   value={formData.state}
-                  onChange={(e) => updateField('state', e.target.value)}
+                  onChange={(e) => updateField("state", e.target.value)}
                   placeholder="TX"
                   className="crm-input"
                 />
@@ -397,7 +407,7 @@ export default function RegisterPage() {
                 <input
                   type="text"
                   value={formData.zip}
-                  onChange={(e) => updateField('zip', e.target.value)}
+                  onChange={(e) => updateField("zip", e.target.value)}
                   placeholder="78701"
                   className="crm-input"
                 />
@@ -416,39 +426,39 @@ export default function RegisterPage() {
             <div className="space-y-2">
               {[
                 {
-                  name: 'New Lead',
-                  color: '#2563EB',
-                  desc: 'Incoming web, phone, or lot inquiry',
+                  name: "New Lead",
+                  color: "#2563EB",
+                  desc: "Incoming web, phone, or lot inquiry",
                 },
                 {
-                  name: 'Contacted',
-                  color: '#7C3AED',
-                  desc: 'First two-way communication established',
+                  name: "Contacted",
+                  color: "#7C3AED",
+                  desc: "First two-way communication established",
                 },
                 {
-                  name: 'Follow-Up',
-                  color: '#F59E0B',
-                  desc: 'Scheduled follow-up sequence active',
+                  name: "Follow-Up",
+                  color: "#F59E0B",
+                  desc: "Scheduled follow-up sequence active",
                 },
                 {
-                  name: 'Appointment',
-                  color: '#0891B2',
-                  desc: 'Showroom test drive or visit booked',
+                  name: "Appointment",
+                  color: "#0891B2",
+                  desc: "Showroom test drive or visit booked",
                 },
                 {
-                  name: 'Negotiation',
-                  color: '#EA580C',
-                  desc: 'Price or financing term discussed',
+                  name: "Negotiation",
+                  color: "#EA580C",
+                  desc: "Price or financing term discussed",
                 },
                 {
-                  name: 'Sold',
-                  color: '#16A34A',
-                  desc: 'Deal closed and vehicle delivered',
+                  name: "Sold",
+                  color: "#16A34A",
+                  desc: "Deal closed and vehicle delivered",
                 },
                 {
-                  name: 'Lost',
-                  color: '#DC2626',
-                  desc: 'Customer purchased elsewhere or cold',
+                  name: "Lost",
+                  color: "#DC2626",
+                  desc: "Customer purchased elsewhere or cold",
                 },
               ].map((st, i) => (
                 <div

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Car,
   Lock,
@@ -9,17 +9,18 @@ import {
   Sparkles,
   AlertCircle,
   UserCheck,
-} from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
-import api from '@/services/api';
-import axios from 'axios';
+} from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import api from "@/services/api";
+import axios from "axios";
+import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,31 +29,44 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await api.post('/auth/login', {
+      const res = await api.post("/auth/login", {
         email: loginEmail,
         password: loginPass,
       });
-      const { user, accessToken, memberships } = res.data.data;
+      const {
+        user,
+        accessToken,
+        memberships,
+        supabaseAccessToken,
+        supabaseRefreshToken,
+      } = res.data.data;
+      if (supabaseAccessToken && supabaseRefreshToken) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: supabaseAccessToken,
+          refresh_token: supabaseRefreshToken,
+        });
+        if (sessionError) throw sessionError;
+      }
       setAuth({ user, accessToken, memberships });
       const targetRoute =
-        memberships?.[0]?.role === 'salesperson'
-          ? '/my-pipeline'
-          : memberships?.[0]?.role === 'manager'
-            ? '/team-pipeline'
-            : '/owner-overview';
+        memberships?.[0]?.role === "salesperson"
+          ? "/my-pipeline"
+          : memberships?.[0]?.role === "manager"
+            ? "/team-pipeline"
+            : "/owner-overview";
       navigate(targetRoute);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         setError(
           err.response?.data?.message ||
             (err.response
-              ? 'Login request failed. Please try again.'
-              : 'Cannot reach the login server. Please check that the API is running.')
+              ? "Login request failed. Please try again."
+              : "Cannot reach the login server. Please check that the API is running."),
         );
       } else {
-        console.error('Unable to initialize the authenticated session:', err);
+        console.error("Unable to initialize the authenticated session:", err);
         setError(
-          'Login succeeded, but the session could not be initialized. Please refresh and try again.'
+          "Login succeeded, but the session could not be initialized. Please refresh and try again.",
         );
       }
     } finally {
@@ -94,7 +108,7 @@ export default function LoginPage() {
         <div className="relative z-10 space-y-4 pt-8 lg:pt-0">
           <div className="space-y-2">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-display tracking-tight leading-tight">
-              Turn More Leads Into{' '}
+              Turn More Leads Into{" "}
               <span className="gold-gradient-text">Closed Deals.</span>
             </h2>
             <p className="text-xs sm:text-sm text-[#B8B8B8] leading-relaxed max-w-md font-normal">
@@ -204,7 +218,7 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="mt-8 pt-4 border-t border-[rgba(255,255,255,0.06)] flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#B8B8B8]">
           <span>
-            Need an account?{' '}
+            Need an account?{" "}
             <Link
               to="/register"
               className="font-bold text-[#E6C85C] hover:underline"
